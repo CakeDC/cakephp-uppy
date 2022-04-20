@@ -17,7 +17,7 @@ The recommended way to install composer packages is:
 
 `composer require cakedc/cakephp-uppy`
 
-This plugin uses `uppy_files` as a table to store filedata as filename, filezise, path in S3, ...
+This plugin uses `uppy_files` as a table to store filedata as filename, filesize, path in S3, ...
 
 To create table run in console `bin/cake migrations migrate`
 
