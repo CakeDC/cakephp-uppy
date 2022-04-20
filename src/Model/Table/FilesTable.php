@@ -11,6 +11,8 @@ use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
 use CakeDC\Uppy\Util\S3Trait;
+use Cake\ORM\Query;
+use Cake\I18n\Number;
 
 /**
  * Files Model
@@ -154,4 +156,31 @@ class FilesTable extends Table
             $this->deleteObject($entity->path, $entity->filename);
         }
     }
+
+    public function findDatatable(Query $query, array $options): Query
+    {
+        return $query
+            ->select([
+                'id',
+                'filename',
+                'filesize',
+                'extension',
+                'path',
+                'created',
+            ])
+        ->formatResults(function (\Cake\Collection\CollectionInterface $results) {
+            return $results->map(function ($file) {
+
+                $row['filename'] = $file->filename;
+                $row['extension'] = $file->extension;
+                $row['filesize'] = Number::toReadableSize($file->filesize);
+                $row['created'] = $file->created->i18nFormat('yyyy-MM-dd');
+                $row['id'] = $file->id;
+
+                return $row;
+            });
+        });
+
+    }
+
 }
