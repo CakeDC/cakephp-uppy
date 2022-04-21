@@ -13,6 +13,7 @@ use Cake\Validation\Validator;
 use CakeDC\Uppy\Util\S3Trait;
 use Cake\ORM\Query;
 use Cake\I18n\Number;
+use Cake\Database\Expression\QueryExpression;
 
 /**
  * Files Model
@@ -76,7 +77,7 @@ class FilesTable extends Table
 
         $validator
             ->scalar('filename')
-            ->maxLength('filename', 255)            
+            ->maxLength('filename', 255)
             ->add('filename', 'validFilename', [
                 'rule' => function ($value, array $context) {
                     if (strcmp(basename($value), $value) === 0) {
@@ -159,7 +160,23 @@ class FilesTable extends Table
 
     public function findDatatable(Query $query, array $options): Query
     {
-        return $query
+        if ($options['q']['value'] ?? false) {
+            $query->where(function (QueryExpression $exp, Query $q) use ($options) {
+                return $exp->like('filename', "%{$options['q']['value']}%");
+            });
+        }
+
+        $query->where(function (QueryExpression $exp, Query $q) use ($options) {
+            return $exp->eq('user_id', "{$options['patient_id']}");
+        });
+
+        if ($options['from_date'] ?? false) {
+            $query->where(function (QueryExpression $exp, Query $q) use ($options) {
+                return $exp->between('created', $options['from_date'] . ' 00:00:00', $options['to_date'] . ' 23:59:59', 'datetime');
+            });
+        }
+
+        $query
             ->select([
                 'id',
                 'filename',
@@ -167,10 +184,10 @@ class FilesTable extends Table
                 'extension',
                 'path',
                 'created',
-            ])
-        ->formatResults(function (\Cake\Collection\CollectionInterface $results) {
-            return $results->map(function ($file) {
+            ]);
 
+        return $query->formatResults(function (\Cake\Collection\CollectionInterface $results) {
+            return $results->map(function ($file) {
                 $row['filename'] = $file->filename;
                 $row['extension'] = $file->extension;
                 $row['filesize'] = Number::toReadableSize($file->filesize);
@@ -180,7 +197,5 @@ class FilesTable extends Table
                 return $row;
             });
         });
-
     }
-
 }
