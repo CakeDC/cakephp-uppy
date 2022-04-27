@@ -5,15 +5,16 @@ namespace CakeDC\Uppy\Model\Table;
 
 use ArrayObject;
 use Cake\Core\Configure;
+use Cake\Database\Expression\QueryExpression;
 use Cake\Datasource\EntityInterface;
 use Cake\Event\EventInterface;
+use Cake\I18n\FrozenTime;
+use Cake\I18n\Number;
+use Cake\ORM\Query;
 use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
 use CakeDC\Uppy\Util\S3Trait;
-use Cake\ORM\Query;
-use Cake\I18n\Number;
-use Cake\Database\Expression\QueryExpression;
 
 /**
  * Files Model
@@ -158,6 +159,13 @@ class FilesTable extends Table
         }
     }
 
+    /**
+     * Finder method to retrieve query with filter applied
+     *
+     * @param \Cake\ORM\Query $query defult query
+     * @param array $options options to filter
+     * @return \Cake\ORM\Query $query wih applied filters
+     */
     public function findDatatable(Query $query, array $options): Query
     {
         if ($options['q']['value'] ?? false) {
@@ -172,7 +180,12 @@ class FilesTable extends Table
 
         if ($options['from_date'] ?? false) {
             $query->where(function (QueryExpression $exp, Query $q) use ($options) {
-                return $exp->between('created', $options['from_date'] . ' 00:00:00', $options['to_date'] . ' 23:59:59', 'datetime');
+                return $exp->between(
+                    'created',
+                    FrozenTime::parse($options['from_date'])->startOfDay(),
+                    FrozenTime::parse($options['to_date'])->endOfDay(),
+                    'datetime'
+                );
             });
         }
 
