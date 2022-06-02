@@ -53,7 +53,7 @@ class FilesTable extends Table
 
         $this->addBehavior('Timestamp');
 
-        $this->belongsTo('Users', [
+        $this->belongsTo(Configure::read('Uppy.Props.usersAliasModel'), [
             'foreignKey' => 'user_id',
             'className' => Configure::read('Uppy.Props.usersModel'),
         ]);
@@ -139,7 +139,7 @@ class FilesTable extends Table
      */
     public function buildRules(RulesChecker $rules): RulesChecker
     {
-        $rules->add($rules->existsIn('user_id', 'Users'), ['errorField' => 'user_id']);
+        $rules->add($rules->existsIn('user_id', Configure::read('Uppy.Props.usersAliasModel')), ['errorField' => 'user_id']);
 
         return $rules;
     }

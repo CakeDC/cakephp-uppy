@@ -3,6 +3,7 @@
 return [
     'Uppy' => [
         'Props' => [
+            'usersAliasModel' => 'Users',
             'usersModel' => 'Users',
             'deleteFileS3' => true,
             'tableFiles' => 'uppy_files',
