@@ -203,6 +203,7 @@ class FilesTable extends Table
             return $results->map(function ($file) {
                 $row['filename'] = $file->filename;
                 $row['extension'] = $file->extension;
+                $row['path'] = $file->path;
                 $row['filesize'] = Number::toReadableSize($file->filesize);
                 $row['created'] = $file->created->i18nFormat('yyyy-MM-dd');
                 $row['id'] = $file->id;
