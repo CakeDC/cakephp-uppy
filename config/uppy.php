@@ -15,7 +15,7 @@ return [
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
             'application/vnd.ms-excel',
             'application/vnd.ms-powerpoint',
-            'application/vnd.openxmlformats-officedocument.presentationml.presentation',            
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation',
         ],
         'AcceptedExtensions' => [
             'pdf',
@@ -36,6 +36,7 @@ return [
             ],
             'config' => [
                 'version' => 'latest',
+                'connection' => 'real', //dummy
                 'region' => filter_var(env('S3_REGION', null)),
                 'endpoint' => filter_var(env('S3_END_POINT', null)),
                 'credentials' => [
