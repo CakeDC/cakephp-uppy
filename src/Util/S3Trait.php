@@ -48,7 +48,7 @@ trait S3Trait
     protected function presignedUrl(string $path, string $name): string
     {
         if (Configure::read('Uppy.S3.config.connection') === 'dummy') {
-            return 'https://dummy.url';
+            return 'https://example.com';
         } else {
             $s3Client = new \Aws\S3\S3Client(Configure::read('Uppy.S3.config'));
             $cmd = $s3Client->getCommand('GetObject', [
@@ -72,7 +72,7 @@ trait S3Trait
     protected function createPresignedRequest(string $path, string $contentType): RequestInterface
     {
         if (Configure::read('Uppy.S3.config.connection') === 'dummy') {
-            return 'https://dummy.url';
+            return 'https://example.com';
         } else {
             $s3Client = new \Aws\S3\S3Client(Configure::read('Uppy.S3.config'));
             $command = $s3Client->getCommand('putObject', [
