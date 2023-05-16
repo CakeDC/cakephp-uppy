@@ -100,6 +100,16 @@ trait S3Trait
         $dest = 's3://' . Configure::read('Uppy.S3.bucket') . DS . $target;
         $manager = new \Aws\S3\Transfer($s3Client, $source, $dest);
         $manager->transfer();
+
+        $promise = $manager->promise();
+
+        $promise->then(function () {
+            //Do nothing
+        });
+
+        $promise->otherwise(function ($reason) {
+            throw new \Exception('Transfer failed. Please try again.');
+        });
     }
 
     /**
