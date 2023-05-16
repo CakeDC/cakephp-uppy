@@ -137,15 +137,11 @@ trait S3Trait
     public function deleteFile(string $fileS3Path): void
     {
         $s3Client = new \Aws\S3\S3Client(Configure::read('Uppy.S3.config'));
-        if ($this->fileExists($fileS3Path)) {
-            $s3Options = [
-                'Bucket' => Configure::read('Uppy.S3.bucket'),
-                'Key' => $fileS3Path,
-            ];
-            $s3Client->deleteObject($s3Options);
-        } else {
-            throw new \Exception('File doesn\'t exist. Please try again.');
-        }
+        $s3Options = [
+            'Bucket' => Configure::read('Uppy.S3.bucket'),
+            'Key' => $fileS3Path,
+        ];
+        $s3Client->deleteObject($s3Options);
     }
 
     /**
@@ -158,7 +154,7 @@ trait S3Trait
     public function deleteDir(string $fileS3Path): void
     {
         $s3Client = new \Aws\S3\S3Client(Configure::read('Uppy.S3.config'));
-        if ($this->fileExists($fileS3Path)) {
+        if ($this->folderExists($fileS3Path)) {
             $s3Client->deleteMatchingObjects(Configure::read('Uppy.S3.bucket'), $fileS3Path);
         } else {
             throw new \Exception('File doesn\'t exist. Please try again.');
@@ -168,7 +164,7 @@ trait S3Trait
     /**
      * Check if file exists in S3 bucket
      *
-     * @param string $filename
+     * @param string $filename filename
      * @return bool
      */
     public function fileExists(string $filename): bool
@@ -176,5 +172,25 @@ trait S3Trait
         $s3Client = new \Aws\S3\S3Client(Configure::read('Uppy.S3.config'));
 
         return $s3Client->doesObjectExist(Configure::read('Uppy.S3.bucket'), $filename);
+    }
+
+    /**
+     * Check if folder exists in S3 bucket
+     *
+     * @param string $filename filename
+     * @return bool
+     */
+    public function folderExists(string $filename): bool
+    {
+        $s3Client = new \Aws\S3\S3Client(Configure::read('Uppy.S3.config'));
+        $list = $s3Client->listObjectsV2([
+            'Bucket' => Configure::read('Uppy.S3.bucket'),
+            'Prefix' => $filename,
+        ]);
+        if ($list['Contents'] > 0) {
+            return true;
+        } else {
+            throw new \Exception('Folder doesn\'t exist. Please try again.');
+        }
     }
 }
