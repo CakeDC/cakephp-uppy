@@ -119,7 +119,6 @@ trait S3Trait
             'SourceFile' => $sourceFilePath,
         ];
         $result = $s3Client->putObject($s3Options);
-
         if (!array_key_exists('@metadata',$result) || !array_key_exists('statusCode', $result['@metadata'])) {
             throw new \Exception('Error on response data. Please try again.');
         }
@@ -135,14 +134,18 @@ trait S3Trait
      * @param string $fileS3Path string used as path in S3
      * @return void
      */
-    public function deleteFile($fileS3Path): void
+    public function deleteFile(string $fileS3Path): void
     {
         $s3Client = new \Aws\S3\S3Client(Configure::read('Uppy.S3.config'));
-        $s3Options = [
-            'Bucket' => Configure::read('Uppy.S3.bucket'),
-            'Key' => $fileS3Path,
-        ];
-        $s3Client->deleteObject($s3Options);
+        if ($this->fileExists($fileS3Path)) {
+            $s3Options = [
+                'Bucket' => Configure::read('Uppy.S3.bucket'),
+                'Key' => $fileS3Path,
+            ];
+            $s3Client->deleteObject($s3Options);
+        } else {
+            throw new \Exception('File doesn\'t exist. Please try again.');
+        }
     }
 
     /**
@@ -152,9 +155,26 @@ trait S3Trait
      * @param string $fileS3Path string used as path in S3
      * @return void
      */
-    public function deleteDir($fileS3Path): void
+    public function deleteDir(string $fileS3Path): void
     {
         $s3Client = new \Aws\S3\S3Client(Configure::read('Uppy.S3.config'));
-        $s3Client->deleteMatchingObjects(Configure::read('Uppy.S3.bucket'), $fileS3Path);
+        if ($this->fileExists($fileS3Path)) {
+            $s3Client->deleteMatchingObjects(Configure::read('Uppy.S3.bucket'), $fileS3Path);
+        } else {
+            throw new \Exception('File doesn\'t exist. Please try again.');
+        }
+    }
+
+    /**
+     * Check if file exists in S3 bucket
+     *
+     * @param string $filename
+     * @return bool
+     */
+    public function fileExists(string $filename): bool
+    {
+        $s3Client = new \Aws\S3\S3Client(Configure::read('Uppy.S3.config'));
+
+        return $s3Client->doesObjectExist(Configure::read('Uppy.S3.bucket'), $filename);
     }
 }
