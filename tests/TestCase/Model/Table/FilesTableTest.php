@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace UppyManager\Test\TestCase\Model\Table;
+namespace CakeDC\Uppy\Test\TestCase\Model\Table;
 
 use Cake\TestSuite\TestCase;
 use UppyManager\Model\Table\FilesTable;

@@ -4,8 +4,8 @@ declare(strict_types=1);
 namespace CakeDC\Uppy\Controller;
 
 use Cake\Core\Configure;
-use Cake\Datasource\Exception\PageOutOfBoundsException;
 use Cake\Datasource\Exception\RecordNotFoundException;
+use Cake\Datasource\Paging\Exception\PageOutOfBoundsException;
 use Cake\ORM\Exception\MissingTableClassException;
 use Cake\Utility\Inflector;
 use Cake\Utility\Text;
@@ -14,7 +14,9 @@ use CakeDC\Uppy\Util\S3Trait;
 /**
  * Files Controller
  *
- * @method \UppyManager\Model\Entity\File[]|\Cake\Datasource\ResultSetInterface paginate($object = null, array $settings = [])
+ * @method \CakeDC\Uppy\Model\Entity\File[]|\Cake\Datasource\ResultSetInterface paginate($object = null, array $settings = [])
+ *
+ * @property \CakeDC\Uppy\Model\Table\FilesTable $Files
  */
 class FilesController extends AppController
 {
@@ -30,7 +32,7 @@ class FilesController extends AppController
     public function initialize(): void
     {
         parent::initialize();
-        $this->Security->setConfig('unlockedActions', ['sign','save']);
+        $this->FormProtection->setConfig('unlockedActions', ['sign','save']);
     }
 
     /**
@@ -53,9 +55,8 @@ class FilesController extends AppController
      */
     public function view($id)
     {
-        $file = $this->Files->get($id, [
-            'contain' => [],
-        ]);
+        /** @var \CakeDC\Uppy\Model\Entity\File $file */
+        $file = $this->Files->get($id);
 
         $presignedUrl = $this->presignedUrl($file->path, $file->filename);
 
@@ -65,11 +66,11 @@ class FilesController extends AppController
     /**
      * Save method
      *
-     * Save files data received in database, asign default model configured, if not foreign_key revceived assign first object in table
+     * Save files data received in database, assign default model configured, if not foreign_key received assign first object in table
      *
-     * @return void
+     * @throws \Exception
      */
-    public function save()
+    public function save(): void
     {
         $this->request->allowMethod('post');
 
@@ -87,7 +88,7 @@ class FilesController extends AppController
             }
             try {
                 $relationTable = $this->fetchTable($item['model']);
-            } catch (MissingTableClassException $e) {
+            } catch (MissingTableClassException) {
                 $result['error'] = true;
                 $result['message'] = __('there is no table {0} to associate the file', $item['model']);
                 $this->set('result', $result);
@@ -105,7 +106,7 @@ class FilesController extends AppController
             }
             try {
                 $register = $relationTable->get($item['foreign_key']);
-            } catch (RecordNotFoundException $e) {
+            } catch (RecordNotFoundException) {
                 $result['error'] = true;
                 $result['message'] = __('there is no record {0} to associate the file', $item['foreign_key']);
                 $this->set('result', $result);
@@ -159,10 +160,6 @@ class FilesController extends AppController
      */
     public function delete($id = null)
     {
-        $file = $this->Files->get($id, [
-            'contain' => [],
-        ]);
-
         $this->request->allowMethod(['post', 'delete']);
         $file = $this->Files->get($id);
         if ($this->Files->delete($file)) {

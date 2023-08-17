@@ -1,0 +1,7 @@
+/composer.lock
+/plugins
+/vendor
+/auth.json
+/.ddev
+/.idea
+/.phpunit.result.cache

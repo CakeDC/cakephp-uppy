@@ -4,34 +4,36 @@ declare(strict_types=1);
 namespace CakeDC\Uppy\Model\Table;
 
 use ArrayObject;
+use Cake\Collection\CollectionInterface;
 use Cake\Core\Configure;
 use Cake\Database\Expression\QueryExpression;
-use Cake\Datasource\EntityInterface;
 use Cake\Event\EventInterface;
-use Cake\I18n\FrozenTime;
+use Cake\I18n\DateTime;
 use Cake\I18n\Number;
-use Cake\ORM\Query;
+use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
+use CakeDC\Uppy\Model\Entity\File;
 use CakeDC\Uppy\Util\S3Trait;
 
 /**
  * Files Model
  *
- * @method \UppyManager\Model\Entity\File newEmptyEntity()
- * @method \UppyManager\Model\Entity\File newEntity(array $data, array $options = [])
- * @method \UppyManager\Model\Entity\File[] newEntities(array $data, array $options = [])
- * @method \UppyManager\Model\Entity\File get($primaryKey, $options = [])
- * @method \UppyManager\Model\Entity\File findOrCreate($search, ?callable $callback = null, $options = [])
- * @method \UppyManager\Model\Entity\File patchEntity(\Cake\Datasource\EntityInterface $entity, array $data, array $options = [])
- * @method \UppyManager\Model\Entity\File[] patchEntities(iterable $entities, array $data, array $options = [])
- * @method \UppyManager\Model\Entity\File|false save(\Cake\Datasource\EntityInterface $entity, $options = [])
- * @method \UppyManager\Model\Entity\File saveOrFail(\Cake\Datasource\EntityInterface $entity, $options = [])
- * @method \UppyManager\Model\Entity\File[]|\Cake\Datasource\ResultSetInterface|false saveMany(iterable $entities, $options = [])
- * @method \UppyManager\Model\Entity\File[]|\Cake\Datasource\ResultSetInterface saveManyOrFail(iterable $entities, $options = [])
- * @method \UppyManager\Model\Entity\File[]|\Cake\Datasource\ResultSetInterface|false deleteMany(iterable $entities, $options = [])
- * @method \UppyManager\Model\Entity\File[]|\Cake\Datasource\ResultSetInterface deleteManyOrFail(iterable $entities, $options = [])
+ * @method \CakeDC\Uppy\Model\Entity\File newEmptyEntity()
+ * @method \CakeDC\Uppy\Model\Entity\File newEntity(array $data, array $options = [])
+ * @method \CakeDC\Uppy\Model\Entity\File[] newEntities(array $data, array $options = [])
+ * @method \CakeDC\Uppy\Model\Entity\File findOrCreate($search, ?callable $callback = null, $options = [])
+ * @method \CakeDC\Uppy\Model\Entity\File patchEntity(\Cake\Datasource\EntityInterface $entity, array $data, array $options = [])
+ * @method \CakeDC\Uppy\Model\Entity\File[] patchEntities(iterable $entities, array $data, array $options = [])
+ * @method \CakeDC\Uppy\Model\Entity\File|false save(\Cake\Datasource\EntityInterface $entity, $options = [])
+ * @method \CakeDC\Uppy\Model\Entity\File saveOrFail(\Cake\Datasource\EntityInterface $entity, $options = [])
+ * @method \CakeDC\Uppy\Model\Entity\File[]|\Cake\Datasource\ResultSetInterface|false saveMany(iterable $entities, $options = [])
+ * @method \CakeDC\Uppy\Model\Entity\File[]|\Cake\Datasource\ResultSetInterface saveManyOrFail(iterable $entities, $options = [])
+ * @method \CakeDC\Uppy\Model\Entity\File[]|\Cake\Datasource\ResultSetInterface|false deleteMany(iterable $entities, $options = [])
+ * @method \CakeDC\Uppy\Model\Entity\File[]|\Cake\Datasource\ResultSetInterface deleteManyOrFail(iterable $entities, $options = [])
+ *
+ * @mixin \Cake\ORM\Behavior\TimestampBehavior
  */
 class FilesTable extends Table
 {
@@ -80,7 +82,7 @@ class FilesTable extends Table
             ->scalar('filename')
             ->maxLength('filename', 255)
             ->add('filename', 'validFilename', [
-                'rule' => function ($value, array $context) {
+                'rule' => function ($value) {
                     if (strcmp(basename($value), $value) === 0) {
                         return true;
                     }
@@ -148,11 +150,11 @@ class FilesTable extends Table
      * If it's configured prop deleteFileS3 delete file in S3 repository
      *
      * @param \Cake\Event\EventInterface $event The beforeSave event that was fired
-     * @param \Cake\Datasource\EntityInterface $entity The entity that is going to be saved
+     * @param \CakeDC\Uppy\Model\Entity\File $entity The entity that is going to be saved
      * @param \ArrayObject $options options
      * @return void
      */
-    public function afterDelete(EventInterface $event, EntityInterface $entity, ArrayObject $options)
+    public function afterDelete(EventInterface $event, File $entity, ArrayObject $options)
     {
         if (Configure::read('Uppy.Props.deleteFileS3')) {
             $this->deleteObject($entity->path, $entity->filename);
@@ -162,31 +164,35 @@ class FilesTable extends Table
     /**
      * Finder method to retrieve query with filter applied
      *
-     * @param \Cake\ORM\Query $query defult query
-     * @param array $options options to filter
-     * @return \Cake\ORM\Query $query wih applied filters
+     * @param \Cake\ORM\Query\SelectQuery $query default query
+     * @param int|string $patient_id
+     * @param array|null $q
+     * @param string|null $from_date
+     * @param string|null $to_date
+     * @return \Cake\ORM\Query\SelectQuery $query wih applied filters
      */
-    public function findDatatable(Query $query, array $options): Query
-    {
-        if ($options['q']['value'] ?? false) {
-            $query->where(function (QueryExpression $exp, Query $q) use ($options) {
-                return $exp->like('filename', "%{$options['q']['value']}%");
-            });
+    public function findDatatable(
+        SelectQuery $query,
+        int|string $patient_id,
+        ?array $q = [],
+        ?string $from_date = null,
+        ?string $to_date = null
+    ): SelectQuery {
+        if ($q['value'] ?? false) {
+            $query->where(fn(QueryExpression $exp): QueryExpression => $exp
+                ->like($this->aliasField('filename'), "%{$q['value']}%"));
         }
 
-        $query->where(function (QueryExpression $exp, Query $q) use ($options) {
-            return $exp->eq('user_id', "{$options['patient_id']}");
-        });
+        $query->where(fn(QueryExpression $exp): QueryExpression => $exp
+            ->eq($this->aliasField('user_id'), $patient_id));
 
-        if ($options['from_date'] ?? false) {
-            $query->where(function (QueryExpression $exp, Query $q) use ($options) {
-                return $exp->between(
-                    'created',
-                    FrozenTime::parse($options['from_date'])->startOfDay(),
-                    FrozenTime::parse($options['to_date'])->endOfDay(),
-                    'datetime'
-                );
-            });
+        if ($from_date && $to_date) {
+            $query->where(fn(QueryExpression $exp): QueryExpression => $exp->between(
+                $this->aliasField('created'),
+                DateTime::parse($from_date)->startOfDay(),
+                DateTime::parse($to_date)->endOfDay(),
+                'datetime'
+            ));
         }
 
         $query
@@ -199,18 +205,18 @@ class FilesTable extends Table
                 'created',
             ]);
 
-        return $query->formatResults(function (\Cake\Collection\CollectionInterface $results) {
-            return $results->map(function ($file) {
+        return $query->formatResults(fn(CollectionInterface $results): CollectionInterface => $results
+            ->map(function (File $file): array {
+                $row = [];
                 $row['filename'] = $file->filename;
                 $row['extension'] = $file->extension;
-                //$row['path'] = $file->path;
                 $row['signedUrl'] = $this->presignedUrl($file->path, $file->filename);
                 $row['filesize'] = Number::toReadableSize($file->filesize);
                 $row['created'] = $file->created->i18nFormat('yyyy-MM-dd');
                 $row['id'] = $file->id;
 
                 return $row;
-            });
-        });
+            })
+        );
     }
 }

@@ -18,12 +18,12 @@ use Cake\ORM\Entity;
  * @property string|null $hash
  * @property string|null $path
  * @property string|null $adapter
- * @property \Cake\I18n\FrozenTime|null $created
- * @property \Cake\I18n\FrozenTime|null $modified
+ * @property \Cake\I18n\DateTime|null $created
+ * @property \Cake\I18n\DateTime|null $modified
  * @property string|null $metadata
  * @property int $foreign_key
  *
- * @property \UppyManager\Model\Entity\User $user
+ * @property \Cake\Datasource\EntityInterface $user
  */
 class File extends Entity
 {
@@ -36,7 +36,7 @@ class File extends Entity
      *
      * @var array
      */
-    protected $_accessible = [
+    protected array $_accessible = [
         'user_id' => false,
         'model' => false,
         'filename' => false,

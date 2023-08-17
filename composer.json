@@ -4,12 +4,19 @@
     "type": "cakephp-plugin",
     "license": "MIT",
     "require": {
-        "php": ">=7.4",
-        "cakephp/cakephp": "^4.3"        
+        "php": ">=8.1",
+        "cakephp/cakephp": "5.x-dev",
+        "ext-mbstring": "*",
+        "aws/aws-sdk-php": "^3.279"
     },
     "require-dev": {
-        "phpunit/phpunit": "^8.5 || ^9.3"
+        "cakephp/cakephp-codesniffer": "^5.0",
+        "phpunit/phpunit": "^10.1.0",
+        "cakephp/migrations": "4.x-dev",
+        "markstory/asset_compress": "5.x-dev"
     },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
     "autoload": {
         "psr-4": {
             "CakeDC\\Uppy\\": "src"            
@@ -19,6 +26,12 @@
         "psr-4": {
             "CakeDC\\Uppy\\Test\\": "tests/",
             "Cake\\Test\\": "vendor/cakephp/cakephp/tests/"
+        }
+    },
+    "config": {
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true,
+            "composer/installers": true
         }
     }
 }

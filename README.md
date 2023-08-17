@@ -6,8 +6,8 @@ You can install this plugin into your CakePHP application using [composer](https
 Requirements
 ------------
 
-* CakePHP 4.0+
-* PHP 7.4+
+* CakePHP 5.0+
+* PHP 8.1+
 
 
 Setup
@@ -108,7 +108,7 @@ This repository follows the [CakeDC Plugin Standard](https://www.cakedc.com/plug
 License
 -------
 
-Copyright 2017-2022 Cake Development Corporation (CakeDC). All rights reserved.
+Copyright 2017-2023 Cake Development Corporation (CakeDC). All rights reserved.
 
 Licensed under the [MIT](http://www.opensource.org/licenses/mit-license.php) License. Redistributions of the source code included in this repository must retain the copyright notice found in each file.
 

@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace UppyManager\Test\TestCase\Controller;
+namespace CakeDC\Uppy\Test\TestCase\Controller;
 
 use Cake\TestSuite\IntegrationTestTrait;
 use Cake\TestSuite\TestCase;
