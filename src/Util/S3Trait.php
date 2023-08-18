@@ -130,7 +130,7 @@ trait S3Trait
             'SourceFile' => $sourceFilePath,
         ];
         $result = $s3Client->putObject($s3Options);
-        if (!array_key_exists('@metadata',$result) || !array_key_exists('statusCode', $result['@metadata'])) {
+        if (!array_key_exists('@metadata',$result->toArray()) || !array_key_exists('statusCode', $result['@metadata'])) {
             throw new Exception('Error on response data. Please try again.');
         }
         if ($result['@metadata']['statusCode'] !== 200) {

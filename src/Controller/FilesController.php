@@ -6,6 +6,7 @@ namespace CakeDC\Uppy\Controller;
 use Cake\Core\Configure;
 use Cake\Datasource\Exception\RecordNotFoundException;
 use Cake\Datasource\Paging\Exception\PageOutOfBoundsException;
+use Cake\Http\Response;
 use Cake\ORM\Exception\MissingTableClassException;
 use Cake\Utility\Inflector;
 use Cake\Utility\Text;
@@ -37,10 +38,8 @@ class FilesController extends AppController
 
     /**
      * Index method
-     *
-     * @return \Cake\Http\Response|null|void Renders view
      */
-    public function index()
+    public function index(): void
     {
         $files = $this->paginate($this->Files);
 
@@ -49,18 +48,15 @@ class FilesController extends AppController
 
     /**
      * View method
-     *
-     * @param string|null $id File Storage id.
-     * @return \Cake\Http\Response|null|void Renders view
      */
-    public function view($id)
+    public function view($id): ?Response
     {
         /** @var \CakeDC\Uppy\Model\Entity\File $file */
         $file = $this->Files->get($id);
 
         $presignedUrl = $this->presignedUrl($file->path, $file->filename);
 
-        $this->redirect($presignedUrl);
+        return $this->redirect($presignedUrl);
     }
 
     /**
@@ -72,9 +68,9 @@ class FilesController extends AppController
      */
     public function save(): void
     {
-        $this->request->allowMethod('post');
+        $this->getRequest()->allowMethod('post');
 
-        $items = $this->request->getData('items');
+        $items = $this->getRequest()->getData('items');
 
         $files = [];
         foreach ($items as $item) {
@@ -139,12 +135,10 @@ class FilesController extends AppController
 
     /**
      * Test method
-     *
-     * @return \Cake\Http\Response|null|void Renders view
      */
-    public function drag()
+    public function drag(): void
     {
-        $this->request->allowMethod('get');
+        $this->getRequest()->allowMethod('get');
 
         $file = $this->Files->newEmptyEntity();
 
@@ -154,13 +148,11 @@ class FilesController extends AppController
     /**
      * Delete method
      *
-     * @param string|null $id File id.
-     * @return \Cake\Http\Response|null|void Redirects to index.
      * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
      */
-    public function delete($id = null)
+    public function delete($id = null): ?Response
     {
-        $this->request->allowMethod(['post', 'delete']);
+        $this->getRequest()->allowMethod(['post', 'delete']);
         $file = $this->Files->get($id);
         if ($this->Files->delete($file)) {
             $this->Flash->success(__('The file has been deleted.'));
@@ -176,48 +168,46 @@ class FilesController extends AppController
      *
      * Generate preasigned url and method and return the same body with firmed url to upload from front to S3 directly
      *
-     * @return \Cake\Http\Response|null|void Redirects on successful add, renders view otherwise.
+     * @return \Cake\Http\Response|null Redirects on successful add, renders view otherwise.
      */
-    public function sign()
+    public function sign(): ?Response
     {
-        $this->request->allowMethod('post');
+        $this->getRequest()->allowMethod('post');
 
-        if ($this->request->getData('filename') === null) {
+        if ($this->getRequest()->getData('filename') === null) {
             throw new PageOutOfBoundsException(__('filename is required'));
         }
-        $filename = Text::uuid() . '-' . Text::slug($this->request->getData('filename'));
+        $filename = Text::uuid() . '-' . Text::slug($this->getRequest()->getData('filename'));
 
-        $contentType = $this->request->getData('contentType');
+        $contentType = $this->getRequest()->getData('contentType');
         if (!in_array($contentType, Configure::read('Uppy.AcceptedContentTypes'))) {
             throw new PageOutOfBoundsException(__('contenType {0} is not valid', $contentType));
         }
 
         $presignedRequest = $this->createPresignedRequest($filename, $contentType);
 
-        return $this->response
-        ->withHeader('content-type', 'application/json')
-        ->withStringBody(json_encode([
-            'error' => false,
-            'code' => 200,
-            'method' => $presignedRequest->getMethod(),
-            'url' => (string)$presignedRequest->getUri(),
-            'fields' => [],
-            // Also set the content-type header on the request, to make sure that it is the same as the one we used to generate the signature.
-            // Else, the browser picks a content-type as it sees fit.
-            'headers' => [
-                'content-type' => $contentType,
-            ],
-        ]));
+        return $this->getResponse()
+            ->withHeader('content-type', 'application/json')
+            ->withStringBody(json_encode([
+                'error' => false,
+                'code' => 200,
+                'method' => $presignedRequest->getMethod(),
+                'url' => (string)$presignedRequest->getUri(),
+                'fields' => [],
+                // Also set the content-type header on the request, to make sure that it is the same as the one we used to generate the signature.
+                // Else, the browser picks a content-type as it sees fit.
+                'headers' => [
+                    'content-type' => $contentType,
+                ],
+            ]));
     }
 
     /**
      * Add method
-     *
-     * @return \Cake\Http\Response|null|void Redirects on successful add, renders view otherwise.
      */
-    public function add()
+    public function add(): void
     {
-        $this->request->allowMethod('get');
+        $this->getRequest()->allowMethod('get');
 
         $file = $this->Files->newEmptyEntity();
 

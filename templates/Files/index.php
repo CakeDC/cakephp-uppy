@@ -2,6 +2,7 @@
 declare(strict_types=1);
 /**
  * @var \App\View\AppView $this
+ * @var \CakeDC\Uppy\Model\Entity\File[] $files
  */
 ?>
 <div class="files index content">
@@ -44,7 +45,5 @@ declare(strict_types=1);
             <?= $this->Paginator->last(__('last') . ' >>') ?>
         </ul>
         <p><?= $this->Paginator->counter(__('Page {{page}} of {{pages}}, showing {{current}} record(s) out of {{count}} total')) ?></p>
-    </div>    
+    </div>
 </div>
-
-

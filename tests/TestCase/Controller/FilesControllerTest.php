@@ -5,12 +5,11 @@ namespace CakeDC\Uppy\Test\TestCase\Controller;
 
 use Cake\TestSuite\IntegrationTestTrait;
 use Cake\TestSuite\TestCase;
-use UppyManager\Controller\FilesController;
 
 /**
- * UppyManager\Controller\FilesController Test Case
+ * CakeDC\Uppy\Controller\FilesController Test Case
  *
- * @uses \UppyManager\Controller\FilesController
+ * @uses \CakeDC\Uppy\Controller\FilesController
  */
 class FilesControllerTest extends TestCase
 {
@@ -21,7 +20,7 @@ class FilesControllerTest extends TestCase
      *
      * @var array
      */
-    protected $fixtures = [
+    protected array $fixtures = [
         'plugin.UppyManager.Files',
     ];
 
@@ -29,7 +28,7 @@ class FilesControllerTest extends TestCase
      * Test index method
      *
      * @return void
-     * @uses \UppyManager\Controller\FilesController::index()
+     * @uses \CakeDC\Uppy\Controller\FilesController::index()
      */
     public function testIndex(): void
     {
@@ -40,7 +39,7 @@ class FilesControllerTest extends TestCase
      * Test view method
      *
      * @return void
-     * @uses \UppyManager\Controller\FilesController::view()
+     * @uses \CakeDC\Uppy\Controller\FilesController::view()
      */
     public function testView(): void
     {
@@ -51,7 +50,7 @@ class FilesControllerTest extends TestCase
      * Test add method
      *
      * @return void
-     * @uses \UppyManager\Controller\FilesController::add()
+     * @uses \CakeDC\Uppy\Controller\FilesController::add()
      */
     public function testAdd(): void
     {
@@ -62,7 +61,7 @@ class FilesControllerTest extends TestCase
      * Test edit method
      *
      * @return void
-     * @uses \UppyManager\Controller\FilesController::edit()
+     * @uses \CakeDC\Uppy\Controller\FilesController::edit()
      */
     public function testEdit(): void
     {
@@ -73,7 +72,7 @@ class FilesControllerTest extends TestCase
      * Test delete method
      *
      * @return void
-     * @uses \UppyManager\Controller\FilesController::delete()
+     * @uses \CakeDC\Uppy\Controller\FilesController::delete()
      */
     public function testDelete(): void
     {

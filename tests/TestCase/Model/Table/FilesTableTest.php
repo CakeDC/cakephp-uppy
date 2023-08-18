@@ -3,28 +3,27 @@ declare(strict_types=1);
 
 namespace CakeDC\Uppy\Test\TestCase\Model\Table;
 
+use Cake\ORM\Table;
 use Cake\TestSuite\TestCase;
-use UppyManager\Model\Table\FilesTable;
+use CakeDC\Uppy\Model\Table\FilesTable;
 
 /**
- * UppyManager\Model\Table\FilesTable Test Case
+ * CakeDC\Uppy\Model\Table\FilesTable Test Case
  */
 class FilesTableTest extends TestCase
 {
     /**
      * Test subject
-     *
-     * @var \UppyManager\Model\Table\FilesTable
      */
-    protected $Files;
+    protected Table|FilesTable $Files;
 
     /**
      * Fixtures
      *
      * @var array
      */
-    protected $fixtures = [
-        'plugin.UppyManager.Files',
+    protected array $fixtures = [
+        'plugin.Uppy.Files',
     ];
 
     /**
@@ -55,7 +54,7 @@ class FilesTableTest extends TestCase
      * Test validationDefault method
      *
      * @return void
-     * @uses \UppyManager\Model\Table\FilesTable::validationDefault()
+     * @uses \CakeDC\Uppy\Model\Table\FilesTable::validationDefault()
      */
     public function testValidationDefault(): void
     {

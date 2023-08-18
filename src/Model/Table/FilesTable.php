@@ -154,7 +154,7 @@ class FilesTable extends Table
      * @param \ArrayObject $options options
      * @return void
      */
-    public function afterDelete(EventInterface $event, File $entity, ArrayObject $options)
+    public function afterDelete(EventInterface $event, File $entity, ArrayObject $options): void
     {
         if (Configure::read('Uppy.Props.deleteFileS3')) {
             $this->deleteObject($entity->path, $entity->filename);
@@ -195,7 +195,7 @@ class FilesTable extends Table
             ));
         }
 
-        $query
+        return $query
             ->select([
                 'id',
                 'filename',
@@ -203,20 +203,19 @@ class FilesTable extends Table
                 'extension',
                 'path',
                 'created',
-            ]);
+            ])
+            ->formatResults(fn(CollectionInterface $results): CollectionInterface => $results
+                ->map(function (File $file): array {
+                    $row = [];
+                    $row['filename'] = $file->filename;
+                    $row['extension'] = $file->extension;
+                    $row['signedUrl'] = $this->presignedUrl($file->path, $file->filename);
+                    $row['filesize'] = Number::toReadableSize($file->filesize);
+                    $row['created'] = $file->created->i18nFormat('yyyy-MM-dd');
+                    $row['id'] = $file->id;
 
-        return $query->formatResults(fn(CollectionInterface $results): CollectionInterface => $results
-            ->map(function (File $file): array {
-                $row = [];
-                $row['filename'] = $file->filename;
-                $row['extension'] = $file->extension;
-                $row['signedUrl'] = $this->presignedUrl($file->path, $file->filename);
-                $row['filesize'] = Number::toReadableSize($file->filesize);
-                $row['created'] = $file->created->i18nFormat('yyyy-MM-dd');
-                $row['id'] = $file->id;
-
-                return $row;
-            })
-        );
+                    return $row;
+                })
+            );
     }
 }

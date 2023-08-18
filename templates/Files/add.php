@@ -2,6 +2,7 @@
 declare(strict_types=1);
 /**
  * @var \App\View\AppView $this
+ * @var \CakeDC\Uppy\Model\Entity\File $file
  */
 use Cake\Core\Configure;
 use Cake\Routing\Router;
@@ -15,7 +16,7 @@ use Cake\Routing\Router;
             </div>
         <?php else : ?>
             <div class="file form">
-                <?php echo $this->Form->create($file); ?>            
+                <?php echo $this->Form->create($file); ?>
                 <?php echo $this->Form->control('model', ['type' => 'text', 'name' => 'model']); ?>
                 <?php echo $this->Form->control('foreign_key', ['type' => 'text', 'name' => 'foreign_key']); ?>
                 <div class="Uppy">
@@ -30,9 +31,9 @@ use Cake\Routing\Router;
                 <div>
                     <h5><?php echo __('Response:');?></h5>
                     <p class="uploaded-response"></p>
-                </div>        
+                </div>
             </div>
-            
+
             <?php
             echo $this->Html->scriptBlock(sprintf('let debug = %s;', (Configure::read('debug')=='1')?"true":"false"));
             echo $this->Html->scriptBlock(sprintf('let csrfToken = %s;', json_encode($this->request->getAttribute('csrfToken'))));
@@ -43,19 +44,17 @@ use Cake\Routing\Router;
 
             <?php $this->start('css'); ?>
                 <?php echo $this->Html->css('CakeDC/Uppy.uppy.min.css'); ?>
-            <?php $this->end(); ?>  
+            <?php $this->end(); ?>
 
             <?php $this->start('script'); ?>
                 <?php echo $this->Html->script('CakeDC/Uppy.uppy.min.js'); ?>
-            <?php $this->end(); ?>  
+            <?php $this->end(); ?>
 
             <?php $this->start('bottom_script'); ?>
                 <?php echo $this->Html->script('CakeDC/Uppy.add.js'); ?>
-            <?php $this->end(); ?>  
+            <?php $this->end(); ?>
 
         <?php endif; ?>
 
     </div>
-</div>        
-
-
+</div>
