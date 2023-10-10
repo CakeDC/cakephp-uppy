@@ -1,6 +1,13 @@
 <?php
 declare(strict_types=1);
 
+/**
+ * Copyright 2013 - 2023, Cake Development Corporation, Las Vegas, Nevada (702) 425-5085 https://www.cakedc.com
+ * Use and restrictions are governed by Section 8.5 of The Professional Services Agreement.
+ * Redistribution is prohibited. All Rights Reserved.
+ *
+ * @copyright Copyright 2013 - 2023, Cake Development Corporation (https://www.cakedc.com) All Rights Reserved.
+ */
 namespace CakeDC\Uppy\Controller;
 
 use Cake\Core\Configure;
@@ -11,12 +18,12 @@ use Cake\ORM\Exception\MissingTableClassException;
 use Cake\Utility\Inflector;
 use Cake\Utility\Text;
 use CakeDC\Uppy\Util\S3Trait;
+use function Cake\I18n\__;
 
 /**
  * Files Controller
  *
  * @method \CakeDC\Uppy\Model\Entity\File[]|\Cake\Datasource\ResultSetInterface paginate($object = null, array $settings = [])
- *
  * @property \CakeDC\Uppy\Model\Table\FilesTable $Files
  */
 class FilesController extends AppController
@@ -49,7 +56,7 @@ class FilesController extends AppController
     /**
      * View method
      */
-    public function view($id): ?Response
+    public function view(string|int|null $id = null): ?Response
     {
         /** @var \CakeDC\Uppy\Model\Entity\File $file */
         $file = $this->Files->get($id);
@@ -150,7 +157,7 @@ class FilesController extends AppController
      *
      * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
      */
-    public function delete($id = null): ?Response
+    public function delete(string|int|null $id = null): ?Response
     {
         $this->getRequest()->allowMethod(['post', 'delete']);
         $file = $this->Files->get($id);
@@ -199,7 +206,7 @@ class FilesController extends AppController
                 'headers' => [
                     'content-type' => $contentType,
                 ],
-            ]));
+            ]) ?: '');
     }
 
     /**

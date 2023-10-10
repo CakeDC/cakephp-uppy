@@ -1,6 +1,13 @@
 <?php
 declare(strict_types=1);
+
 /**
+ * Copyright 2013 - 2023, Cake Development Corporation, Las Vegas, Nevada (702) 425-5085 https://www.cakedc.com
+ * Use and restrictions are governed by Section 8.5 of The Professional Services Agreement.
+ * Redistribution is prohibited. All Rights Reserved.
+ *
+ * @copyright Copyright 2013 - 2023, Cake Development Corporation (https://www.cakedc.com) All Rights Reserved.
+ *
  * @var \App\View\AppView $this
  * @var \CakeDC\Uppy\Model\Entity\File $file
  */
@@ -10,7 +17,10 @@ use Cake\Routing\Router;
 <div class="row content">
     <div class="column-responsive column-80">
         <h2><?php echo __('Example add file');?></h2>
-        <?php if (!Configure::read('Uppy.S3.config.credentials.key') || !Configure::read('Uppy.S3.config.credentials.secret')) : ?>
+        <?php if (
+            !Configure::read('Uppy.S3.config.credentials.key') ||
+            !Configure::read('Uppy.S3.config.credentials.secret')
+) : ?>
             <div class="file form">
                 <?php echo __('You need configure S3 Credentials in config/uppy.php'); ?>
             </div>
@@ -20,7 +30,11 @@ use Cake\Routing\Router;
                 <?php echo $this->Form->control('model', ['type' => 'text', 'name' => 'model']); ?>
                 <?php echo $this->Form->control('foreign_key', ['type' => 'text', 'name' => 'foreign_key']); ?>
                 <div class="Uppy">
-                    <?php echo $this->Form->control('files', ['type' => 'file', 'name' => 'files[]', 'multiple' => 'multiple']); ?>
+                    <?php echo $this->Form->control('files', [
+                        'type' => 'file',
+                        'name' => 'files[]',
+                        'multiple' => 'multiple',
+                    ]); ?>
                 </div>
                 <?php echo $this->Form->end(); ?>
                 <div class="UppyProgressBar"></div>
@@ -35,7 +49,7 @@ use Cake\Routing\Router;
             </div>
 
             <?php
-            echo $this->Html->scriptBlock(sprintf('let debug = %s;', (Configure::read('debug')=='1')?"true":"false"));
+            echo $this->Html->scriptBlock(sprintf('let debug = %s;', Configure::read('debug') == '1' ? 'true' : 'false'));
             echo $this->Html->scriptBlock(sprintf('let csrfToken = %s;', json_encode($this->request->getAttribute('csrfToken'))));
             echo $this->Html->scriptBlock(sprintf('let signUrl = "%s";', Router::url(['prefix' => false, 'plugin' => 'CakeDC/Uppy', 'controller' => 'Files', 'action' => 'sign'])));
             echo $this->Html->scriptBlock(sprintf('let saveUrl = "%s";', Router::url(['prefix' => false, 'plugin' => 'CakeDC/Uppy', 'controller' => 'Files', 'action' => 'save'])));

@@ -1,6 +1,13 @@
 <?php
 declare(strict_types=1);
+
 /**
+ * Copyright 2013 - 2023, Cake Development Corporation, Las Vegas, Nevada (702) 425-5085 https://www.cakedc.com
+ * Use and restrictions are governed by Section 8.5 of The Professional Services Agreement.
+ * Redistribution is prohibited. All Rights Reserved.
+ *
+ * @copyright Copyright 2013 - 2023, Cake Development Corporation (https://www.cakedc.com) All Rights Reserved.
+ *
  * @var \App\View\AppView $this
  */
 use Cake\Core\Configure;
@@ -32,7 +39,7 @@ use Cake\Utility\Text;
             <div id="drag-drop-area"></div>
 
             <?php
-            echo $this->Html->scriptBlock(sprintf('let debug = %s;', (Configure::read('debug')=='1')?"true":"false"));
+            echo $this->Html->scriptBlock(sprintf('let debug = %s;', Configure::read('debug') == '1' ? 'true' : 'false'));
             echo $this->Html->scriptBlock(sprintf('let formId = "%s";', $formId));
             echo $this->Html->scriptBlock(sprintf('let csrfToken = %s;', json_encode($this->request->getAttribute('csrfToken'))));
             echo $this->Html->scriptBlock(sprintf('let signUrl = "%s";', Router::url(['prefix' => false, 'plugin' => 'CakeDC/Uppy', 'controller' => 'Files', 'action' => 'sign'])));

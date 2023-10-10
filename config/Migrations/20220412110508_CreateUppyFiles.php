@@ -1,6 +1,13 @@
 <?php
 declare(strict_types=1);
 
+/**
+ * Copyright 2013 - 2023, Cake Development Corporation, Las Vegas, Nevada (702) 425-5085 https://www.cakedc.com
+ * Use and restrictions are governed by Section 8.5 of The Professional Services Agreement.
+ * Redistribution is prohibited. All Rights Reserved.
+ *
+ * @copyright Copyright 2013 - 2023, Cake Development Corporation (https://www.cakedc.com) All Rights Reserved.
+ */
 use Migrations\AbstractMigration;
 
 class CreateUppyFiles extends AbstractMigration
@@ -10,9 +17,10 @@ class CreateUppyFiles extends AbstractMigration
      *
      * More information on this method is available here:
      * https://book.cakephp.org/phinx/0/en/migrations.html#the-up-method
+     *
      * @return void
      */
-    public function change()
+    public function change(): void
     {
         $this->table('uppy_files', ['id' => false, 'primary_key' => ['id']])
             ->addColumn('id', 'uuid', [

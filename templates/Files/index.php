@@ -1,8 +1,15 @@
 <?php
 declare(strict_types=1);
+
 /**
+ * Copyright 2013 - 2023, Cake Development Corporation, Las Vegas, Nevada (702) 425-5085 https://www.cakedc.com
+ * Use and restrictions are governed by Section 8.5 of The Professional Services Agreement.
+ * Redistribution is prohibited. All Rights Reserved.
+ *
+ * @copyright Copyright 2013 - 2023, Cake Development Corporation (https://www.cakedc.com) All Rights Reserved.
+ *
  * @var \App\View\AppView $this
- * @var \CakeDC\Uppy\Model\Entity\File[] $files
+ * @var array<\CakeDC\Uppy\Model\Entity\File> $files
  */
 ?>
 <div class="files index content">

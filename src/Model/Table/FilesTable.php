@@ -1,6 +1,13 @@
 <?php
 declare(strict_types=1);
 
+/**
+ * Copyright 2013 - 2023, Cake Development Corporation, Las Vegas, Nevada (702) 425-5085 https://www.cakedc.com
+ * Use and restrictions are governed by Section 8.5 of The Professional Services Agreement.
+ * Redistribution is prohibited. All Rights Reserved.
+ *
+ * @copyright Copyright 2013 - 2023, Cake Development Corporation (https://www.cakedc.com) All Rights Reserved.
+ */
 namespace CakeDC\Uppy\Model\Table;
 
 use ArrayObject;
@@ -16,6 +23,7 @@ use Cake\ORM\Table;
 use Cake\Validation\Validator;
 use CakeDC\Uppy\Model\Entity\File;
 use CakeDC\Uppy\Util\S3Trait;
+use function Cake\I18n\__;
 
 /**
  * Files Model
@@ -32,7 +40,6 @@ use CakeDC\Uppy\Util\S3Trait;
  * @method \CakeDC\Uppy\Model\Entity\File[]|\Cake\Datasource\ResultSetInterface saveManyOrFail(iterable $entities, $options = [])
  * @method \CakeDC\Uppy\Model\Entity\File[]|\Cake\Datasource\ResultSetInterface|false deleteMany(iterable $entities, $options = [])
  * @method \CakeDC\Uppy\Model\Entity\File[]|\Cake\Datasource\ResultSetInterface deleteManyOrFail(iterable $entities, $options = [])
- *
  * @mixin \Cake\ORM\Behavior\TimestampBehavior
  */
 class FilesTable extends Table
@@ -141,7 +148,13 @@ class FilesTable extends Table
      */
     public function buildRules(RulesChecker $rules): RulesChecker
     {
-        $rules->add($rules->existsIn('user_id', Configure::read('Uppy.Props.usersAliasModel')), ['errorField' => 'user_id']);
+        $rules->add(
+            $rules->existsIn(
+                'user_id',
+                Configure::read('Uppy.Props.usersAliasModel')
+            ),
+            ['errorField' => 'user_id']
+        );
 
         return $rules;
     }
@@ -165,7 +178,7 @@ class FilesTable extends Table
      * Finder method to retrieve query with filter applied
      *
      * @param \Cake\ORM\Query\SelectQuery $query default query
-     * @param int|string $patient_id
+     * @param string|int $patient_id
      * @param array|null $q
      * @param string|null $from_date
      * @param string|null $to_date
@@ -179,15 +192,15 @@ class FilesTable extends Table
         ?string $to_date = null
     ): SelectQuery {
         if ($q['value'] ?? false) {
-            $query->where(fn(QueryExpression $exp): QueryExpression => $exp
+            $query->where(fn (QueryExpression $exp): QueryExpression => $exp
                 ->like($this->aliasField('filename'), "%{$q['value']}%"));
         }
 
-        $query->where(fn(QueryExpression $exp): QueryExpression => $exp
+        $query->where(fn (QueryExpression $exp): QueryExpression => $exp
             ->eq($this->aliasField('user_id'), $patient_id));
 
         if ($from_date && $to_date) {
-            $query->where(fn(QueryExpression $exp): QueryExpression => $exp->between(
+            $query->where(fn (QueryExpression $exp): QueryExpression => $exp->between(
                 $this->aliasField('created'),
                 DateTime::parse($from_date)->startOfDay(),
                 DateTime::parse($to_date)->endOfDay(),
@@ -204,7 +217,7 @@ class FilesTable extends Table
                 'path',
                 'created',
             ])
-            ->formatResults(fn(CollectionInterface $results): CollectionInterface => $results
+            ->formatResults(fn (CollectionInterface $results): CollectionInterface => $results
                 ->map(function (File $file): array {
                     $row = [];
                     $row['filename'] = $file->filename;
@@ -215,7 +228,6 @@ class FilesTable extends Table
                     $row['id'] = $file->id;
 
                     return $row;
-                })
-            );
+                }));
     }
 }

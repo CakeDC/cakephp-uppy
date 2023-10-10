@@ -1,9 +1,17 @@
 <?php
 declare(strict_types=1);
 
+/**
+ * Copyright 2013 - 2023, Cake Development Corporation, Las Vegas, Nevada (702) 425-5085 https://www.cakedc.com
+ * Use and restrictions are governed by Section 8.5 of The Professional Services Agreement.
+ * Redistribution is prohibited. All Rights Reserved.
+ *
+ * @copyright Copyright 2013 - 2023, Cake Development Corporation (https://www.cakedc.com) All Rights Reserved.
+ */
 namespace CakeDC\Uppy\Util;
 
 use Aws\S3\S3Client;
+use Aws\S3\Transfer;
 use Cake\Core\Configure;
 use Exception;
 use Psr\Http\Message\RequestInterface;
@@ -14,17 +22,17 @@ trait S3Trait
      * delete Object directly in S3
      *
      * @see /config/cors.xml
-     * @param string $path string used as path in S3
-     * @param string $name string filename
+     * @param string $path|null string used as path in S3
+     * @param string $name|null string filename
      * @return bool result operation
      */
-    protected function deleteObject(string $path, string $name): bool
+    protected function deleteObject(?string $path, ?string $name): bool
     {
         if (Configure::read('Uppy.S3.config.connection') !== 'dummy') {
             $s3Client = new S3Client(Configure::read('Uppy.S3.config'));
             $exist = $s3Client->doesObjectExist(Configure::read('Uppy.S3.bucket'), $path);
             if ($exist) {
-                $result = $s3Client->deleteObject([
+                $s3Client->deleteObject([
                     'Bucket' => Configure::read('Uppy.S3.bucket'),
                     'Key' => $path,
                 ]);
@@ -41,11 +49,11 @@ trait S3Trait
      * Generate a signed GET uRI to acces files in S3, note CORS must be configured for the domain
      *
      * @see /config/cors.xml
-     * @param string $path string used as path in S3
-     * @param string $name string filename
+     * @param string|null $path string used as path in S3
+     * @param string|null $name string filename
      * @return string
      */
-    protected function presignedUrl(string $path, string $name): string
+    protected function presignedUrl(?string $path, ?string $name): string
     {
         if (Configure::read('Uppy.S3.config.connection') === 'dummy') {
             return 'https://example.com';
@@ -98,16 +106,16 @@ trait S3Trait
     {
         $s3Client = new S3Client(Configure::read('Uppy.S3.config'));
         $dest = 's3://' . Configure::read('Uppy.S3.bucket') . DS . $target;
-        $manager = new \Aws\S3\Transfer($s3Client, $source, $dest);
+        $manager = new Transfer($s3Client, $source, $dest);
         $manager->transfer();
 
         $promise = $manager->promise();
 
-        $promise->then(function () {
+        $promise->then(function (): void {
             //Do nothing
         });
 
-        $promise->otherwise(function ($reason) {
+        $promise->otherwise(function ($reason): void {
             throw new Exception('Transfer failed. Please try again.');
         });
     }
@@ -130,7 +138,10 @@ trait S3Trait
             'SourceFile' => $sourceFilePath,
         ];
         $result = $s3Client->putObject($s3Options);
-        if (!array_key_exists('@metadata',$result->toArray()) || !array_key_exists('statusCode', $result['@metadata'])) {
+        if (
+            !array_key_exists('@metadata', $result->toArray()) ||
+            !array_key_exists('statusCode', $result['@metadata'])
+        ) {
             throw new Exception('Error on response data. Please try again.');
         }
         if ($result['@metadata']['statusCode'] !== 200) {

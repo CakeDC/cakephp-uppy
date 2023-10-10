@@ -2,15 +2,12 @@
 declare(strict_types=1);
 
 /**
- * Copyright 2015 - 2023, Cake Development Corporation (http://cakedc.com)
+ * Copyright 2013 - 2023, Cake Development Corporation, Las Vegas, Nevada (702) 425-5085 https://www.cakedc.com
+ * Use and restrictions are governed by Section 8.5 of The Professional Services Agreement.
+ * Redistribution is prohibited. All Rights Reserved.
  *
- * Licensed under The MIT License
- * Redistributions of files must retain the above copyright notice.
- *
- * @copyright Copyright 2015 - 2023, Cake Development Corporation (http://cakedc.com)
- * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
+ * @copyright Copyright 2013 - 2023, Cake Development Corporation (https://www.cakedc.com) All Rights Reserved.
  */
-
 use Cake\Core\Plugin;
 use Cake\I18n\I18n;
 use Cake\I18n\Package;
