@@ -30,7 +30,11 @@ class FilesController extends AppController
     public function initialize(): void
     {
         parent::initialize();
-        $this->Security->setConfig('unlockedActions', ['sign','save']);
+        if ($this->components()->has('Security')) {
+            $this->Security->setConfig('unlockedActions', ['sign', 'save']);
+        } elseif ($this->components()->has('FormProtection')) {
+            $this->FormProtection->setConfig('unlockedActions', ['sign', 'save']);
+        }
     }
 
     /**
@@ -132,6 +136,7 @@ class FilesController extends AppController
             $result['message'] = __('The association to file could not be saved');
         }
 
+        $this->viewBuilder()->setClassName('Json');
         $this->set('result', $result);
         $this->viewBuilder()->setOption('serialize', ['result']);
     }
