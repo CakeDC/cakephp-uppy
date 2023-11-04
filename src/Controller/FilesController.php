@@ -138,6 +138,7 @@ class FilesController extends AppController
             $result['message'] = __('The association to file could not be saved');
         }
 
+        $this->viewBuilder()->setClassName('Json');
         $this->set('result', $result);
         $this->viewBuilder()->setOption('serialize', ['result']);
     }
