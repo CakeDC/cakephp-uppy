@@ -25,7 +25,6 @@ use function Cake\I18n\__;
 /**
  * Files Controller
  *
- * @method \CakeDC\Uppy\Model\Entity\File[]|\Cake\Datasource\ResultSetInterface paginate($object = null, array $settings = [])
  * @property \CakeDC\Uppy\Model\Table\FilesTable $Files
  */
 class FilesController extends AppController
@@ -82,6 +81,7 @@ class FilesController extends AppController
         $items = $this->getRequest()->getData('items');
 
         $files = [];
+        $result = [];
         foreach ($items as $item) {
             if (!isset($item['model'])) {
                 $result['error'] = true;

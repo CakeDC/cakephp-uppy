@@ -38,10 +38,6 @@ use function Cake\I18n\__;
  * @method \CakeDC\Uppy\Model\Entity\File[] patchEntities(iterable $entities, array $data, array $options = [])
  * @method \CakeDC\Uppy\Model\Entity\File|false save(\Cake\Datasource\EntityInterface $entity, $options = [])
  * @method \CakeDC\Uppy\Model\Entity\File saveOrFail(\Cake\Datasource\EntityInterface $entity, $options = [])
- * @method \CakeDC\Uppy\Model\Entity\File[]|\Cake\Datasource\ResultSetInterface|false saveMany(iterable $entities, $options = [])
- * @method \CakeDC\Uppy\Model\Entity\File[]|\Cake\Datasource\ResultSetInterface saveManyOrFail(iterable $entities, $options = [])
- * @method \CakeDC\Uppy\Model\Entity\File[]|\Cake\Datasource\ResultSetInterface|false deleteMany(iterable $entities, $options = [])
- * @method \CakeDC\Uppy\Model\Entity\File[]|\Cake\Datasource\ResultSetInterface deleteManyOrFail(iterable $entities, $options = [])
  * @mixin \Cake\ORM\Behavior\TimestampBehavior
  */
 class FilesTable extends Table
@@ -181,7 +177,7 @@ class FilesTable extends Table
      *
      * @param \Cake\ORM\Query\SelectQuery $query default query
      * @param string|int $patient_id
-     * @param array|null $q
+     * @param array $q
      * @param string|null $from_date
      * @param string|null $to_date
      * @return \Cake\ORM\Query\SelectQuery $query wih applied filters
@@ -189,7 +185,7 @@ class FilesTable extends Table
     public function findDatatable(
         SelectQuery $query,
         int|string $patient_id,
-        ?array $q = [],
+        array $q = [],
         ?string $from_date = null,
         ?string $to_date = null
     ): SelectQuery {
@@ -225,8 +221,8 @@ class FilesTable extends Table
                     $row['filename'] = $file->filename;
                     $row['extension'] = $file->extension;
                     $row['signedUrl'] = $this->presignedUrl($file->path, $file->filename);
-                    $row['filesize'] = Number::toReadableSize($file->filesize);
-                    $row['created'] = $file->created->i18nFormat('yyyy-MM-dd');
+                    $row['filesize'] = Number::toReadableSize($file->filesize ?? 0);
+                    $row['created'] = $file->created?->i18nFormat('yyyy-MM-dd');
                     $row['id'] = $file->id;
 
                     return $row;

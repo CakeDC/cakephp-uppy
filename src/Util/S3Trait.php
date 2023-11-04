@@ -15,7 +15,9 @@ namespace CakeDC\Uppy\Util;
 use Aws\S3\S3Client;
 use Aws\S3\Transfer;
 use Cake\Core\Configure;
+use Cake\Http\Client\Request;
 use Exception;
+use Laminas\Diactoros\Uri;
 use Psr\Http\Message\RequestInterface;
 
 trait S3Trait
@@ -24,12 +26,13 @@ trait S3Trait
      * delete Object directly in S3
      *
      * @see /config/cors.xml
-     * @param string $path|null string used as path in S3
-     * @param string $name|null string filename
+     * @param string|null $path string used as path in S3
+     * @param string|null $name string filename
      * @return bool result operation
      */
     protected function deleteObject(?string $path, ?string $name): bool
     {
+        $path = $path ?? '';
         if (Configure::read('Uppy.S3.config.connection') !== 'dummy') {
             $s3Client = new S3Client(Configure::read('Uppy.S3.config'));
             $exist = $s3Client->doesObjectExist(Configure::read('Uppy.S3.bucket'), $path);
@@ -77,12 +80,13 @@ trait S3Trait
      * @see /config/cors.xml
      * @param string $path string used as path in S3
      * @param string $contentType string contenttype
-     * @return \Psr\Http\Message\RequestInterface|string
+     * @return \Psr\Http\Message\RequestInterface
      */
-    protected function createPresignedRequest(string $path, string $contentType): RequestInterface|string
+    protected function createPresignedRequest(string $path, string $contentType): RequestInterface
     {
         if (Configure::read('Uppy.S3.config.connection') === 'dummy') {
-            return 'https://example.com';
+            return (new Request())
+                ->withUri(new Uri('https://example.com'));
         } else {
             $s3Client = new S3Client(Configure::read('Uppy.S3.config'));
             $command = $s3Client->getCommand('putObject', [
@@ -139,9 +143,10 @@ trait S3Trait
             'Key' => $destinationS3Path,
             'SourceFile' => $sourceFilePath,
         ];
-        $result = $s3Client->putObject($s3Options);
+        $result = $s3Client->putObject($s3Options)->toArray();
+
         if (
-            !array_key_exists('@metadata', $result->toArray()) ||
+            !array_key_exists('@metadata', $result) ||
             !array_key_exists('statusCode', $result['@metadata'])
         ) {
             throw new Exception('Error on response data. Please try again.');
