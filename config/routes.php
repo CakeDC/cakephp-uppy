@@ -2,11 +2,13 @@
 declare(strict_types=1);
 
 /**
- * Copyright 2013 - 2023, Cake Development Corporation, Las Vegas, Nevada (702) 425-5085 https://www.cakedc.com
- * Use and restrictions are governed by Section 8.5 of The Professional Services Agreement.
- * Redistribution is prohibited. All Rights Reserved.
+ * Copyright 2023, Cake Development Corporation (https://www.cakedc.com)
  *
- * @copyright Copyright 2013 - 2023, Cake Development Corporation (https://www.cakedc.com) All Rights Reserved.
+ * Licensed under The MIT License
+ * Redistributions of files must retain the above copyright notice.
+ *
+ * @copyright Copyright 2023, Cake Development Corporation (https://www.cakedc.com)
+ * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
 use Cake\Routing\Route\DashedRoute;
 use Cake\Routing\RouteBuilder;

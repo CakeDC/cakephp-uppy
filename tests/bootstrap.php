@@ -2,20 +2,14 @@
 declare(strict_types=1);
 
 /**
- * Copyright 2013 - 2023, Cake Development Corporation, Las Vegas, Nevada (702) 425-5085 https://www.cakedc.com
- * Use and restrictions are governed by Section 8.5 of The Professional Services Agreement.
- * Redistribution is prohibited. All Rights Reserved.
+ * Test suite bootstrap for AdamTest.
  *
- * @copyright Copyright 2013 - 2023, Cake Development Corporation (https://www.cakedc.com) All Rights Reserved.
+ * This function is used to find the location of CakePHP whether CakePHP
+ * has been installed as a dependency of the plugin, or the plugin is itself
+ * installed as a dependency of an application.
  */
-use Cake\Core\Plugin;
-use Cake\I18n\I18n;
-use Cake\I18n\Package;
-use CakeDC\Uppy\UppyPlugin;
+use function Cake\Core\env;
 
-/**
- * @throws \Exception
- */
 $findRoot = function ($root) {
     do {
         $lastRoot = $root;
@@ -31,21 +25,35 @@ $root = $findRoot(__FILE__);
 unset($findRoot);
 
 chdir($root);
+
+require_once $root . '/vendor/autoload.php';
+
+/**
+ * Define fallback values for required constants and configuration.
+ * To customize constants and configuration remove this require
+ * and define the data required by your plugin here.
+ */
+require_once $root . '/vendor/cakephp/cakephp/tests/bootstrap.php';
+
 if (file_exists($root . '/config/bootstrap.php')) {
     require $root . '/config/bootstrap.php';
+
+    return;
 }
 
-require $root . '/vendor/cakephp/cakephp/tests/bootstrap.php';
-require $root . '/vendor/cakephp/cakephp/src/functions.php';
+/**
+ * Load schema from a SQL dump file.
+ *
+ * If your plugin does not use database fixtures you can
+ * safely delete this.
+ *
+ * If you want to support multiple databases, consider
+ * using migrations to provide schema for your plugin,
+ * and using \Migrations\TestSuite\Migrator to load schema.
+ */
+use Cake\TestSuite\Fixture\SchemaLoader;
 
-Plugin::getCollection()->add(new UppyPlugin(['path' => dirname(__FILE__, 2) . DS]));
-I18n::config('default', function ($name, $locale) {
-    $package = new Package('default');
-    $messages = [
-        'Active' => 'Translated Active',
-        'Foo' => 'translated foo',
-    ];
-    $package->setMessages($messages);
-
-    return $package;
-});
+if (env('FIXTURE_SCHEMA_METADATA')) {
+    $loader = new SchemaLoader();
+    $loader->loadInternalFile(env('FIXTURE_SCHEMA_METADATA'));
+}
