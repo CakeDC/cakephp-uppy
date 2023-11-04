@@ -2,6 +2,13 @@
     "name": "cakedc/cakephp-uppy",
     "description": "CakeDC Uppy plugin for CakePHP",
     "type": "cakephp-plugin",
+    "keywords": [
+        "cakephp",
+        "uppy",
+        "upload",
+        "amazon s3",
+        "cakedc"
+    ],
     "license": "MIT",
     "require": {
         "php": ">=8.1",
