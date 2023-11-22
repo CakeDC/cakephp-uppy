@@ -12,7 +12,7 @@ declare(strict_types=1);
  * @var \App\View\AppView $this
  */
 
-$cakeDescription = 'CakePHP Uppy Plugin';
+$cakeDescription = __('CakePHP Uppy Plugin');
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -36,7 +36,7 @@ $cakeDescription = 'CakePHP Uppy Plugin';
 <body>
     <nav class="top-nav">
         <div class="top-nav-title">
-            <a href="<?= $this->Url->build('/') ?>"><span>Cake</span>PHP</a>
+            <a href="<?= $this->Url->build('/') ?>"><span>Cake</span>PHP Uppy Plugin</a>
         </div>
         <div class="top-nav-links">
             <a target="_blank" rel="noopener" href="https://book.cakephp.org/4/">Documentation</a>

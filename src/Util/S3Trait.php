@@ -20,6 +20,9 @@ use Exception;
 use Laminas\Diactoros\Uri;
 use Psr\Http\Message\RequestInterface;
 
+/**
+ * S3Trait
+ */
 trait S3Trait
 {
     /**
