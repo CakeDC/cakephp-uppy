@@ -1,10 +1,19 @@
 <?php
 declare(strict_types=1);
 
-namespace UppyManager\Test\TestCase\Model\Table;
+/**
+ * Copyright 2023, Cake Development Corporation (https://www.cakedc.com)
+ *
+ * Licensed under The MIT License
+ * Redistributions of files must retain the above copyright notice.
+ *
+ * @copyright Copyright 2023, Cake Development Corporation (https://www.cakedc.com)
+ * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
+ */
+namespace CakeDC\Uppy\Test\TestCase\Model\Table;
 
 use Cake\TestSuite\TestCase;
-use UppyManager\Model\Table\FilesTable;
+use CakeDC\Uppy\Model\Table\FilesTable;
 
 /**
  * UppyManager\Model\Table\FilesTable Test Case
@@ -14,7 +23,7 @@ class FilesTableTest extends TestCase
     /**
      * Test subject
      *
-     * @var \UppyManager\Model\Table\FilesTable
+     * @var \CakeDC\Uppy\Model\Table\FilesTable
      */
     protected $Files;
 
@@ -24,7 +33,7 @@ class FilesTableTest extends TestCase
      * @var array
      */
     protected $fixtures = [
-        'plugin.UppyManager.Files',
+        'plugin.CakeDC\Uppy.Files',
     ];
 
     /**
@@ -55,7 +64,7 @@ class FilesTableTest extends TestCase
      * Test validationDefault method
      *
      * @return void
-     * @uses \UppyManager\Model\Table\FilesTable::validationDefault()
+     * @uses \CakeDC\Uppy\Model\Table\FilesTable::validationDefault()
      */
     public function testValidationDefault(): void
     {

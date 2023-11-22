@@ -1,5 +1,12 @@
 <?php
 /**
+ * Copyright 2023, Cake Development Corporation (https://www.cakedc.com)
+ *
+ * Licensed under The MIT License
+ * Redistributions of files must retain the above copyright notice.
+ *
+ * @copyright Copyright 2023, Cake Development Corporation (https://www.cakedc.com)
+ * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
  * @var \App\View\AppView $this
  */
 use Cake\Core\Configure;
@@ -27,7 +34,7 @@ use Cake\Utility\Text;
             <p>
                 <h5><?php echo __('Response:');?></h5>
                 <p class="uploaded-response"></p>
-            </p>    
+            </p>
             <div id="drag-drop-area"></div>
 
             <?php
@@ -40,15 +47,15 @@ use Cake\Utility\Text;
             ?>
             <?php $this->start('css'); ?>
                 <?php echo $this->Html->css('CakeDC/Uppy.uppy.min.css'); ?>
-            <?php $this->end(); ?>  
+            <?php $this->end(); ?>
 
             <?php $this->start('script'); ?>
                 <?php echo $this->Html->script('CakeDC/Uppy.uppy.min.js'); ?>
-            <?php $this->end(); ?>  
+            <?php $this->end(); ?>
 
             <?php $this->start('bottom_script'); ?>
                 <?php echo $this->Html->script('CakeDC/Uppy.drag.js'); ?>
-            <?php $this->end(); ?>  
+            <?php $this->end(); ?>
 
         <?php endif; ?>
     </div>

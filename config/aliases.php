@@ -10,27 +10,8 @@ declare(strict_types=1);
  * @copyright Copyright 2023, Cake Development Corporation (https://www.cakedc.com)
  * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
-namespace CakeDC\Uppy\Test\Fixture;
+use Cake\Controller\Controller;
+use Cake\View\View;
 
-use Cake\TestSuite\Fixture\TestFixture;
-
-/**
- * FilesFixture
- */
-class FilesFixture extends TestFixture
-{
-    /**
-     * Init method
-     *
-     * @return void
-     */
-    public function init(): void
-    {
-        $this->records = [
-            [
-                'id' => 1,
-            ],
-        ];
-        parent::init();
-    }
-}
+class_alias(Controller::class, 'App\Controller\AppController');
+class_alias(View::class, '\App\View\AppView');
