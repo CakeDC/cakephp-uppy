@@ -7,7 +7,7 @@
     </php>
     <!-- Add any additional test suites you want to run here -->
     <testsuites>
-        <testsuite name="CakeDC Uppy plugin for CakePHP">
+        <testsuite name="UppyManager">
             <directory>tests/TestCase/</directory>
         </testsuite>
     </testsuites>
