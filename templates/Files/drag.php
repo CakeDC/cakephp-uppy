@@ -17,7 +17,10 @@ use Cake\Utility\Text;
 <div class="row content">
     <div class="column-responsive column-80">
         <h2><?= __('Example drag file') ?></h2>
-        <?php if (!Configure::read('Uppy.S3.config.credentials.key') || !Configure::read('Uppy.S3.config.credentials.secret')) : ?>
+        <?php if (
+            !Configure::read('Uppy.S3.config.credentials.key') ||
+            !Configure::read('Uppy.S3.config.credentials.secret')
+) : ?>
             <div>
                 <?= __('You need configure S3 Credentials in config/uppy.php') ?>
             </div>
