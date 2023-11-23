@@ -1,6 +1,15 @@
 <?php
 declare(strict_types=1);
 
+/**
+ * Copyright 2023, Cake Development Corporation (https://www.cakedc.com)
+ *
+ * Licensed under The MIT License
+ * Redistributions of files must retain the above copyright notice.
+ *
+ * @copyright Copyright 2023, Cake Development Corporation (https://www.cakedc.com)
+ * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
+ */
 namespace CakeDC\Uppy\Util;
 
 use Cake\Core\Configure;
@@ -129,7 +138,7 @@ trait S3Trait
             'SourceFile' => $sourceFilePath,
         ];
         $result = $s3Client->putObject($s3Options);
-        if (!array_key_exists('@metadata',$result) || !array_key_exists('statusCode', $result['@metadata'])) {
+        if (!array_key_exists('@metadata', $result) || !array_key_exists('statusCode', $result['@metadata'])) {
             throw new \Exception('Error on response data. Please try again.');
         }
         if ($result['@metadata']['statusCode'] !== 200) {

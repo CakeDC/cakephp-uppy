@@ -1,16 +1,24 @@
 <?php
 declare(strict_types=1);
 
-namespace UppyManager\Test\TestCase\Controller;
+/**
+ * Copyright 2023, Cake Development Corporation (https://www.cakedc.com)
+ *
+ * Licensed under The MIT License
+ * Redistributions of files must retain the above copyright notice.
+ *
+ * @copyright Copyright 2023, Cake Development Corporation (https://www.cakedc.com)
+ * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
+ */
+namespace CakeDC\Uppy\Test\TestCase\Controller;
 
 use Cake\TestSuite\IntegrationTestTrait;
 use Cake\TestSuite\TestCase;
-use UppyManager\Controller\FilesController;
 
 /**
- * UppyManager\Controller\FilesController Test Case
+ * CakeDC\Uppy\Controller\FilesController Test Case
  *
- * @uses \UppyManager\Controller\FilesController
+ * @uses \CakeDC\Uppy\Controller\FilesController
  */
 class FilesControllerTest extends TestCase
 {
@@ -22,14 +30,14 @@ class FilesControllerTest extends TestCase
      * @var array
      */
     protected $fixtures = [
-        'plugin.UppyManager.Files',
+        'plugin.CakeDC\Uppy.Files',
     ];
 
     /**
      * Test index method
      *
      * @return void
-     * @uses \UppyManager\Controller\FilesController::index()
+     * @uses \CakeDC\Uppy\Controller\FilesController::index()
      */
     public function testIndex(): void
     {
@@ -40,7 +48,7 @@ class FilesControllerTest extends TestCase
      * Test view method
      *
      * @return void
-     * @uses \UppyManager\Controller\FilesController::view()
+     * @uses \CakeDC\Uppy\Controller\FilesController::view()
      */
     public function testView(): void
     {
@@ -51,7 +59,7 @@ class FilesControllerTest extends TestCase
      * Test add method
      *
      * @return void
-     * @uses \UppyManager\Controller\FilesController::add()
+     * @uses \CakeDC\Uppy\Controller\FilesController::add()
      */
     public function testAdd(): void
     {
@@ -62,7 +70,7 @@ class FilesControllerTest extends TestCase
      * Test edit method
      *
      * @return void
-     * @uses \UppyManager\Controller\FilesController::edit()
+     * @uses \CakeDC\Uppy\Controller\FilesController::edit()
      */
     public function testEdit(): void
     {
@@ -73,7 +81,7 @@ class FilesControllerTest extends TestCase
      * Test delete method
      *
      * @return void
-     * @uses \UppyManager\Controller\FilesController::delete()
+     * @uses \CakeDC\Uppy\Controller\FilesController::delete()
      */
     public function testDelete(): void
     {

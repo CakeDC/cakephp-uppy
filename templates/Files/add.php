@@ -1,5 +1,12 @@
 <?php
 /**
+ * Copyright 2023, Cake Development Corporation (https://www.cakedc.com)
+ *
+ * Licensed under The MIT License
+ * Redistributions of files must retain the above copyright notice.
+ *
+ * @copyright Copyright 2023, Cake Development Corporation (https://www.cakedc.com)
+ * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
  * @var \App\View\AppView $this
  */
 use Cake\Core\Configure;
@@ -14,7 +21,7 @@ use Cake\Routing\Router;
             </div>
         <?php else : ?>
             <div class="file form">
-                <?php echo $this->Form->create($file); ?>            
+                <?php echo $this->Form->create($file); ?>
                 <?php echo $this->Form->control('model', ['type' => 'text', 'name' => 'model']); ?>
                 <?php echo $this->Form->control('foreign_key', ['type' => 'text', 'name' => 'foreign_key']); ?>
                 <div class="Uppy">
@@ -29,9 +36,9 @@ use Cake\Routing\Router;
                 <div>
                     <h5><?php echo __('Response:');?></h5>
                     <p class="uploaded-response"></p>
-                </div>        
+                </div>
             </div>
-            
+
             <?php
             echo $this->Html->scriptBlock(sprintf('let debug = %s;', (Configure::read('debug')=='1')?"true":"false"));
             echo $this->Html->scriptBlock(sprintf('let csrfToken = %s;', json_encode($this->request->getAttribute('csrfToken'))));
@@ -42,19 +49,19 @@ use Cake\Routing\Router;
 
             <?php $this->start('css'); ?>
                 <?php echo $this->Html->css('CakeDC/Uppy.uppy.min.css'); ?>
-            <?php $this->end(); ?>  
+            <?php $this->end(); ?>
 
             <?php $this->start('script'); ?>
                 <?php echo $this->Html->script('CakeDC/Uppy.uppy.min.js'); ?>
-            <?php $this->end(); ?>  
+            <?php $this->end(); ?>
 
             <?php $this->start('bottom_script'); ?>
                 <?php echo $this->Html->script('CakeDC/Uppy.add.js'); ?>
-            <?php $this->end(); ?>  
+            <?php $this->end(); ?>
 
         <?php endif; ?>
 
     </div>
-</div>        
+</div>
 
 
