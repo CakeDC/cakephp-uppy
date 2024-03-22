@@ -96,7 +96,7 @@ class FilesController extends AppController
             }
             try {
                 $relationTable = $this->fetchTable($item['model']);
-            } catch (MissingTableClassException|UnexpectedValueException) {
+            } catch (MissingTableClassException | UnexpectedValueException) {
                 $result['error'] = true;
                 $result['message'] = __('there is no table {0} to associate the file', $item['model']);
                 $this->set('result', $result);
