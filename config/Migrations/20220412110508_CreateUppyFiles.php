@@ -79,15 +79,11 @@ class CreateUppyFiles extends AbstractMigration
                 'default' => null,
                 'limit' => null,
                 'null' => true,
-                'precision' => 6,
-                'scale' => 6,
             ])
             ->addColumn('modified', 'timestamp', [
                 'default' => null,
                 'limit' => null,
                 'null' => true,
-                'precision' => 6,
-                'scale' => 6,
             ])
             ->addColumn('metadata', 'text', [
                 'default' => null,

@@ -37,14 +37,14 @@ trait S3Trait
     {
         $path = $path ?? '';
         if (Configure::read('Uppy.S3.config.connection') !== 'dummy') {
-            $s3Client = new S3Client(Configure::read('Uppy.S3.config'));
-            $exist = $s3Client->doesObjectExist(Configure::read('Uppy.S3.bucket'), $path);
+            $s3Client = new S3Client(Configure::readOrFail('Uppy.S3.config'));
+            $exist = $s3Client->doesObjectExist(Configure::readOrFail('Uppy.S3.bucket'), $path);
             if ($exist) {
                 $s3Client->deleteObject([
-                    'Bucket' => Configure::read('Uppy.S3.bucket'),
+                    'Bucket' => Configure::readOrFail('Uppy.S3.bucket'),
                     'Key' => $path,
                 ]);
-                if ($s3Client->doesObjectExist(Configure::read('Uppy.S3.bucket'), $path)) {
+                if ($s3Client->doesObjectExist(Configure::readOrFail('Uppy.S3.bucket'), $path)) {
                     return false;
                 }
             }
@@ -67,9 +67,9 @@ trait S3Trait
             return 'https://example.com';
         }
 
-        $s3Client = new S3Client(Configure::read('Uppy.S3.config'));
+        $s3Client = new S3Client(Configure::readOrFail('Uppy.S3.config'));
         $cmd = $s3Client->getCommand('GetObject', [
-            'Bucket' => Configure::read('Uppy.S3.bucket'),
+            'Bucket' => Configure::readOrFail('Uppy.S3.bucket'),
             'Key' => $path,
         ]);
         $request = $s3Client->createPresignedRequest($cmd, Configure::read('Uppy.S3.contants.lifeTimeGetObject'));
@@ -91,15 +91,15 @@ trait S3Trait
             return (new Request())
                 ->withUri(new Uri('https://example.com'));
         } else {
-            $s3Client = new S3Client(Configure::read('Uppy.S3.config'));
+            $s3Client = new S3Client(Configure::readOrFail('Uppy.S3.config'));
             $command = $s3Client->getCommand('putObject', [
-                'Bucket' => Configure::read('Uppy.S3.bucket'),
+                'Bucket' => Configure::readOrFail('Uppy.S3.bucket'),
                 'Key' => $path,
                 'ContentType' => $contentType,
                 'Body' => '',
             ]);
 
-            return $s3Client->createPresignedRequest($command, Configure::read('Uppy.S3.contants.lifeTimePutObject'));
+            return $s3Client->createPresignedRequest($command, Configure::readOrFail('Uppy.S3.contants.lifeTimePutObject'));
         }
     }
 
@@ -113,8 +113,8 @@ trait S3Trait
      */
     public function uploadDir(string $source, string $target): void
     {
-        $s3Client = new S3Client(Configure::read('Uppy.S3.config'));
-        $dest = 's3://' . Configure::read('Uppy.S3.bucket') . DS . $target;
+        $s3Client = new S3Client(Configure::readOrFail('Uppy.S3.config'));
+        $dest = 's3://' . Configure::readOrFail('Uppy.S3.bucket') . DS . $target;
         $manager = new Transfer($s3Client, $source, $dest);
         $manager->transfer();
 
@@ -140,9 +140,9 @@ trait S3Trait
      */
     public function uploadFile(string $sourceFilePath, string $destinationS3Path): void
     {
-        $s3Client = new S3Client(Configure::read('Uppy.S3.config'));
+        $s3Client = new S3Client(Configure::readOrFail('Uppy.S3.config'));
         $s3Options = [
-            'Bucket' => Configure::read('Uppy.S3.bucket'),
+            'Bucket' => Configure::readOrFail('Uppy.S3.bucket'),
             'Key' => $destinationS3Path,
             'SourceFile' => $sourceFilePath,
         ];
@@ -168,7 +168,7 @@ trait S3Trait
      */
     public function deleteFile(string $fileS3Path): void
     {
-        $s3Client = new S3Client(Configure::read('Uppy.S3.config'));
+        $s3Client = new S3Client(Configure::readOrFail('Uppy.S3.config'));
         $s3Options = [
             'Bucket' => Configure::read('Uppy.S3.bucket'),
             'Key' => $fileS3Path,
@@ -186,9 +186,9 @@ trait S3Trait
      */
     public function deleteDir(string $fileS3Path): void
     {
-        $s3Client = new S3Client(Configure::read('Uppy.S3.config'));
+        $s3Client = new S3Client(Configure::readOrFail('Uppy.S3.config'));
         if ($this->folderExists($fileS3Path)) {
-            $s3Client->deleteMatchingObjects(Configure::read('Uppy.S3.bucket'), $fileS3Path);
+            $s3Client->deleteMatchingObjects(Configure::readOrFail('Uppy.S3.bucket'), $fileS3Path);
         } else {
             throw new Exception('File doesn\'t exist. Please try again.');
         }
@@ -202,9 +202,9 @@ trait S3Trait
      */
     public function fileExists(string $filename): bool
     {
-        $s3Client = new S3Client(Configure::read('Uppy.S3.config'));
+        $s3Client = new S3Client(Configure::readOrFail('Uppy.S3.config'));
 
-        return $s3Client->doesObjectExist(Configure::read('Uppy.S3.bucket'), $filename);
+        return $s3Client->doesObjectExist(Configure::readOrFail('Uppy.S3.bucket'), $filename);
     }
 
     /**
@@ -216,9 +216,9 @@ trait S3Trait
      */
     public function folderExists(string $filename): bool
     {
-        $s3Client = new S3Client(Configure::read('Uppy.S3.config'));
+        $s3Client = new S3Client(Configure::readOrFail('Uppy.S3.config'));
         $list = $s3Client->listObjectsV2([
-            'Bucket' => Configure::read('Uppy.S3.bucket'),
+            'Bucket' => Configure::readOrFail('Uppy.S3.bucket'),
             'Prefix' => $filename,
         ]);
         if ($list['Contents'] > 0) {

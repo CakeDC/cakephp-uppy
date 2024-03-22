@@ -41,6 +41,9 @@ class FilesController extends AppController
     public function initialize(): void
     {
         parent::initialize();
+        if (!$this->components()->has('FormProtection')) {
+            $this->loadComponent('FormProtection');
+        }
         $this->FormProtection->setConfig('unlockedActions', ['sign','save']);
     }
 
@@ -93,7 +96,7 @@ class FilesController extends AppController
             }
             try {
                 $relationTable = $this->fetchTable($item['model']);
-            } catch (MissingTableClassException) {
+            } catch (MissingTableClassException|UnexpectedValueException) {
                 $result['error'] = true;
                 $result['message'] = __('there is no table {0} to associate the file', $item['model']);
                 $this->set('result', $result);
@@ -123,7 +126,7 @@ class FilesController extends AppController
             $file->filename = $item['filename'];
             $file->filesize = $item['filesize'];
             $file->extension = $item['extension'];
-            $model = Configure::read('Uppy.Props.usersModel');
+            $model = Configure::readOrFail('Uppy.Props.usersModel');
             $relation_key = Inflector::singularize(mb_strtolower($model)) . '_id';
             $file->user_id = $register->{$relation_key};
             $file->model = $item['model'];
@@ -190,8 +193,8 @@ class FilesController extends AppController
         $filename = Text::uuid() . '-' . Text::slug($this->getRequest()->getData('filename'));
 
         $contentType = $this->getRequest()->getData('contentType');
-        if (!in_array($contentType, Configure::read('Uppy.AcceptedContentTypes'))) {
-            throw new PageOutOfBoundsException(__('contenType {0} is not valid', $contentType));
+        if (!in_array($contentType, Configure::read('Uppy.AcceptedContentTypes', []))) {
+            throw new PageOutOfBoundsException(__('contenType {0} is not valid', h($contentType)));
         }
 
         $presignedRequest = $this->createPresignedRequest($filename, $contentType);

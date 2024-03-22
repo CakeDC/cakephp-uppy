@@ -54,15 +54,15 @@ class FilesTable extends Table
     {
         parent::initialize($config);
 
-        $this->setTable(Configure::read('Uppy.Props.tableFiles'));
+        $this->setTable(Configure::readOrFail('Uppy.Props.tableFiles'));
         $this->setDisplayField('id');
         $this->setPrimaryKey('id');
 
         $this->addBehavior('Timestamp');
 
-        $this->belongsTo(Configure::read('Uppy.Props.usersAliasModel'), [
+        $this->belongsTo(Configure::readOrFail('Uppy.Props.usersAliasModel'), [
             'foreignKey' => 'user_id',
-            'className' => Configure::read('Uppy.Props.usersModel'),
+            'className' => Configure::readOrFail('Uppy.Props.usersModel'),
         ]);
     }
 
@@ -100,13 +100,13 @@ class FilesTable extends Table
 
         $validator
             ->scalar('mime_type')
-            ->inList('mime_type', Configure::read('Uppy.AcceptedContentTypes'))
+            ->inList('mime_type', Configure::read('Uppy.AcceptedContentTypes', []))
             ->maxLength('mime_type', 128)
             ->allowEmptyString('mime_type');
 
         $validator
             ->scalar('extension')
-            ->inList('extension', Configure::read('Uppy.AcceptedExtensions'))
+            ->inList('extension', Configure::read('Uppy.AcceptedExtensions', []))
             ->maxLength('extension', 32)
             ->allowEmptyString('extension');
 
@@ -149,7 +149,7 @@ class FilesTable extends Table
         $rules->add(
             $rules->existsIn(
                 'user_id',
-                Configure::read('Uppy.Props.usersAliasModel')
+                Configure::readOrFail('Uppy.Props.usersAliasModel')
             ),
             ['errorField' => 'user_id']
         );
@@ -167,7 +167,7 @@ class FilesTable extends Table
      */
     public function afterDelete(EventInterface $event, File $entity, ArrayObject $options): void
     {
-        if (Configure::read('Uppy.Props.deleteFileS3')) {
+        if (Configure::read('Uppy.Props.deleteFileS3', false)) {
             $this->deleteObject($entity->path, $entity->filename);
         }
     }

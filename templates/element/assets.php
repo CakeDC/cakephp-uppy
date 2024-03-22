@@ -47,6 +47,6 @@ echo $this->Html->scriptBlock(
     sprintf('let file_not_saved = "%s";', __('The file could not be saved. Please, try again.'))
 );
 ?>
-<?= $this->Html->css('CakeDC/Uppy.uppy.min.css', ['block' => true]) ?>
-<?= $this->Html->script('CakeDC/Uppy.uppy.min.js', ['block' => true]) ?>
-<?= $this->Html->script('CakeDC/Uppy.add.js', ['block' => 'bottom_script']);
+<?= $this->Html->css('CakeDC/Uppy.uppy.min.css') ?>
+<?= $this->Html->script('CakeDC/Uppy.uppy.min.js') ?>
+<?= $this->Html->script('CakeDC/Uppy.add.js');
