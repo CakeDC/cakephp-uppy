@@ -80,13 +80,15 @@ class FilesController extends AppController
     public function save(): void
     {
         $this->getRequest()->allowMethod('post');
+        $this->viewBuilder()->setClassName('Json');
 
         $items = $this->getRequest()->getData('items');
 
         $files = [];
         $result = [];
         foreach ($items as $item) {
-            if (!isset($item['model'])) {
+            $tableAlias = $item['model'] ?? null;
+            if (!$tableAlias) {
                 $result['error'] = true;
                 $result['message'] = __('model is required');
                 $this->set('result', $result);
@@ -95,16 +97,17 @@ class FilesController extends AppController
                 return;
             }
             try {
-                $relationTable = $this->fetchTable($item['model']);
+                $relationTable = $this->fetchTable($tableAlias);
             } catch (MissingTableClassException | UnexpectedValueException) {
                 $result['error'] = true;
-                $result['message'] = __('there is no table {0} to associate the file', $item['model']);
+                $result['message'] = __('there is no table {0} to associate the file', $tableAlias);
                 $this->set('result', $result);
                 $this->viewBuilder()->setOption('serialize', ['result']);
 
                 return;
             }
-            if (!isset($item['foreign_key'])) {
+            $foreignKey = $item['foreign_key'] ?? null;
+            if (!$foreignKey) {
                 $result['error'] = true;
                 $result['message'] = __('foreign key is required');
                 $this->set('result', $result);
@@ -113,10 +116,10 @@ class FilesController extends AppController
                 return;
             }
             try {
-                $register = $relationTable->get($item['foreign_key']);
+                $register = $relationTable->get($foreignKey);
             } catch (RecordNotFoundException) {
                 $result['error'] = true;
-                $result['message'] = __('there is no record {0} to associate the file', $item['foreign_key']);
+                $result['message'] = __('there is no record with id {0} to associate the file', $foreignKey);
                 $this->set('result', $result);
                 $this->viewBuilder()->setOption('serialize', ['result']);
 
@@ -129,7 +132,7 @@ class FilesController extends AppController
             $model = Configure::readOrFail('Uppy.Props.usersModel');
             $relation_key = Inflector::singularize(mb_strtolower($model)) . '_id';
             $file->user_id = $register->{$relation_key};
-            $file->model = $item['model'];
+            $file->model = $tableAlias;
             $files[] = $file;
         }
 
@@ -141,7 +144,6 @@ class FilesController extends AppController
             $result['message'] = __('The association to file could not be saved');
         }
 
-        $this->viewBuilder()->setClassName('Json');
         $this->set('result', $result);
         $this->viewBuilder()->setOption('serialize', ['result']);
     }
