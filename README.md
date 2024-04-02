@@ -17,11 +17,25 @@ The recommended way to install composer packages is:
 
 `composer require cakedc/cakephp-uppy`
 
+Then, ensure the plugin is added to your application, in `config/plugins.php` add
+
+```php
+'CakeDC/Uppy'
+```
+
+Important: By default, the plugin will add a number of routes to your application `/uppy/files` in order to
+upload and view the uploaded files. You should protect these endpoints in case your application requires
+authentication to upload or manage files. Failing to do so would allow an authenticated user to *upload* files
+to your application.
+
 This plugin uses `uppy_files` as a table to store filedata as filename, filesize, path in S3, ...
 
-To create table run in console `bin/cake migrations migrate`
+Run the Plugin migrations to create a table to hold the uploaded files details
 
-You must configure the connection parameters with S3 in `config/uppy.php`
+`bin/cake migrations migrate -p CakeDC/Uppy`
+
+Then copy the file `vendor/cakedc/cakephp-uppy/config/uppy.php` into `config/uppy.php`. Tweak this file to
+provide the required configuration for your S3 compatible connection.
 
 ```php
 <?php
@@ -72,8 +86,8 @@ return [
 - lifeTimeGetObject = life time generated link to access file in S3
 - lifeTimePutObject = life time generated link to post file in S3
 - region = configured region S3
-- endpoint = endpoint server to PUT/POST/GET S3 files 
-- key = S3 account key          
+- endpoint = endpoint server to PUT/POST/GET S3 files
+- key = S3 account key
 - secret = S3 account secret
 - bucket = bucket name
 

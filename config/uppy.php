@@ -13,7 +13,9 @@ declare(strict_types=1);
 return [
     'Uppy' => [
         'Props' => [
+            // the Table Alias to identify the user who uploaded the file
             'usersAliasModel' => 'Users',
+            // the Table className to identify the user who uploaded the file
             'usersModel' => 'Users',
             'deleteFileS3' => true,
             'tableFiles' => 'uppy_files',

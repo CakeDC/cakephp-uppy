@@ -13,10 +13,19 @@ declare(strict_types=1);
 namespace CakeDC\Uppy;
 
 use Cake\Core\BasePlugin;
+use Cake\Core\Configure;
+use Cake\Core\PluginApplicationInterface;
 
 /**
  * Plugin for UppyManager
  */
 class UppyPlugin extends BasePlugin
 {
+    public function bootstrap(PluginApplicationInterface $app): void
+    {
+        parent::bootstrap($app);
+        if (file_exists(CONFIG . 'uppy.php')) {
+            Configure::load('uppy');
+        }
+    }
 }

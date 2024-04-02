@@ -19,6 +19,7 @@ return static function (RouteBuilder $builder): void {
         ['path' => '/uppy'],
         function (RouteBuilder $routes): void {
             $routes->setRouteClass(DashedRoute::class);
+            $routes->fallbacks();
         }
     );
 };
