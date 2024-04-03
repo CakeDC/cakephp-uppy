@@ -17,6 +17,7 @@ use Cake\Datasource\Exception\RecordNotFoundException;
 use Cake\Datasource\Paging\Exception\PageOutOfBoundsException;
 use Cake\Http\Response;
 use Cake\ORM\Exception\MissingTableClassException;
+use Cake\Utility\Hash;
 use Cake\Utility\Inflector;
 use Cake\Utility\Text;
 use CakeDC\Uppy\Util\S3Trait;
@@ -136,9 +137,10 @@ class FilesController extends AppController
             $files[] = $file;
         }
 
-        if ($this->Files->saveMany($files)) {
+        if ($savedFiles = $this->Files->saveMany($files)) {
             $result['error'] = false;
             $result['message'] = __('The association has been be saved correctly');
+            $result['saved_file_ids'] = collection($savedFiles)->extract('id')->toArray();
         } else {
             $result['error'] = true;
             $result['message'] = __('The association to file could not be saved');
