@@ -1,0 +1,22 @@
+Changelog
+=========
+
+Releases for CakePHP 5.0
+------------------------
+* 2.0.3
+    * Update documentation
+
+* 2.0.2
+    * Improvements after testing the plugin with an example application
+
+* 2.0.1
+    * Minor fixes
+
+* 2.0.0
+    * Initial release
+
+
+Releases for CakePHP 4.0
+------------------------
+* 1.0.0
+    * Initial release

@@ -11,4 +11,4 @@ Documentation
 
 * [CakePHP Docker](Documentation/CakePHP-Docker.md) (optional)
 * [Install](Documentation/Installation.md)
-* [Configure as Use](Documentation/Configure.md)
+* [Configure and Use](Documentation/Configure.md)
