@@ -12,14 +12,17 @@ declare(strict_types=1);
  */
 use Cake\Routing\Route\DashedRoute;
 use Cake\Routing\RouteBuilder;
+use Cake\Core\Configure;
 
 return static function (RouteBuilder $builder): void {
-    $builder->plugin(
-        'CakeDC/Uppy',
-        ['path' => '/uppy'],
-        function (RouteBuilder $routes): void {
-            $routes->setRouteClass(DashedRoute::class);
-            $routes->fallbacks();
-        }
-    );
+    if (Configure::read('debug')) {
+        $builder->plugin(
+            'CakeDC/Uppy',
+            ['path' => '/uppy'],
+            function (RouteBuilder $routes): void {
+                $routes->setRouteClass(DashedRoute::class);
+                $routes->fallbacks();
+            }
+        );
+    }
 };
