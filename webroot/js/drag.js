@@ -1,22 +1,13 @@
-
-var uppy = new Uppy.Core({debug: debug})
-.use(Uppy.Dashboard, {
-    inline: true,
-    target: '#drag-drop-area',
-    allowMultipleUploads: false,
-    id: 'uppyFile',
-    autoProceed: true,
-})
-.use(Uppy.Form, {
-    target: '#'+formId,                        
+window.uppy.use(window.Uppy.Form, {
+    target: '#'+formId,
     resultName: 'uppyResult',
     getMetaFromForm: true,
     addResultToForm: true,
     multipleResults: false,
     submitOnSuccess: false,
     triggerUploadOnSubmit: false,
-})       
-.use(Uppy.AwsS3, {
+})
+.use(window.Uppy.AwsS3, {
     getUploadParameters (file) {
         let body = JSON.stringify({
                 filename: file.name,
@@ -30,14 +21,14 @@ var uppy = new Uppy.Core({debug: debug})
                 'X-CSRF-Token': csrfToken
             },
             body: body,
-        })                
+        })
         .then((response) => {
             return response.json()
         }).then((data) => {
-            if (data.error){                    
-                document.querySelector('.uploaded-response').innerHTML = file_not_saved;                                         
-            }else{
-                if (data.code!=200&&data.message!== undefined){                     
+            if (data.error){
+                document.querySelector('.uploaded-response').innerHTML = file_not_saved;
+            } else {
+                if (data.code != 200 && data.message !== undefined){
                     document.querySelector('.uploaded-response').innerHTML = data.message;
                     return false;
                 }
@@ -50,21 +41,21 @@ var uppy = new Uppy.Core({debug: debug})
             }
         })
     }
-});            
+});
 
-uppy.on('complete', (result) => {
-    
+window.uppy.on('complete', (result) => {
+
     if (result.successful.length == 0) return;
 
     let objs = [];
-    for(j in result.successful){
+    for(let j in result.successful){
         let obj = {};
         obj.filename = result.successful[j].data.name;
         obj.filesize = result.successful[j].data.size;
         obj.mime_type = result.successful[j].data.type;
         obj.extension = result.successful[j].extension;
-        obj.foreign_key = document.querySelector('input[name="foreign_key"]').value;           
-        obj.model = document.querySelector('input[name="model"]').value;        
+        obj.foreign_key = document.querySelector('input[name="foreign_key"]').value;
+        obj.model = document.querySelector('input[name="model"]').value;
         let v = result.successful[j].uploadURL.split('/')
         obj.path = v[v.length-1];
         objs[objs.length] = obj;
@@ -81,11 +72,11 @@ uppy.on('complete', (result) => {
         body: body,
     })
     .then((resp) => resp.json())
-    .then(function(data) {                                
-        document.querySelector('.uploaded-response').innerHTML = data.result.message;                          
+    .then(function(data) {
+        document.querySelector('.uploaded-response').innerHTML = data.result.message;
     })
     .catch(function(error) {
-        document.querySelector('.uploaded-response').innerHTML = error.message;  
-    });          
+        document.querySelector('.uploaded-response').innerHTML = error.message;
+    });
 
 })

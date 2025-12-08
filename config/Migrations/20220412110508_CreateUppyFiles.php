@@ -40,6 +40,11 @@ class CreateUppyFiles extends AbstractMigration
                 'limit' => 128,
                 'null' => true,
             ])
+            ->addColumn('foreign_key', 'integer', [
+                'default' => null,
+                'limit' => 10,
+                'null' => false,
+            ])
             ->addColumn('filename', 'string', [
                 'default' => null,
                 'limit' => 255,
@@ -75,29 +80,18 @@ class CreateUppyFiles extends AbstractMigration
                 'limit' => 32,
                 'null' => true,
             ])
-            ->addColumn('created', 'timestamp', [
-                'default' => null,
-                'limit' => null,
-                'null' => true,
-                'precision' => 6,
-                'scale' => 6,
-            ])
-            ->addColumn('modified', 'timestamp', [
-                'default' => null,
-                'limit' => null,
-                'null' => true,
-                'precision' => 6,
-                'scale' => 6,
-            ])
             ->addColumn('metadata', 'text', [
                 'default' => null,
                 'limit' => null,
                 'null' => true,
             ])
-            ->addColumn('foreign_key', 'integer', [
+            ->addColumn('created', 'datetime', [
                 'default' => null,
-                'limit' => 10,
-                'null' => false,
+                'null' => true,
+            ])
+            ->addColumn('modified', 'datetime', [
+                'default' => null,
+                'null' => true,
             ])
             ->addIndex(
                 [

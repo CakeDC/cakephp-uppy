@@ -28,19 +28,19 @@ use CakeDC\Uppy\Util\S3Trait;
 /**
  * Files Model
  *
- * @method \UppyManager\Model\Entity\File newEmptyEntity()
- * @method \UppyManager\Model\Entity\File newEntity(array $data, array $options = [])
- * @method \UppyManager\Model\Entity\File[] newEntities(array $data, array $options = [])
- * @method \UppyManager\Model\Entity\File get($primaryKey, $options = [])
- * @method \UppyManager\Model\Entity\File findOrCreate($search, ?callable $callback = null, $options = [])
- * @method \UppyManager\Model\Entity\File patchEntity(\Cake\Datasource\EntityInterface $entity, array $data, array $options = [])
- * @method \UppyManager\Model\Entity\File[] patchEntities(iterable $entities, array $data, array $options = [])
- * @method \UppyManager\Model\Entity\File|false save(\Cake\Datasource\EntityInterface $entity, $options = [])
- * @method \UppyManager\Model\Entity\File saveOrFail(\Cake\Datasource\EntityInterface $entity, $options = [])
- * @method \UppyManager\Model\Entity\File[]|\Cake\Datasource\ResultSetInterface|false saveMany(iterable $entities, $options = [])
- * @method \UppyManager\Model\Entity\File[]|\Cake\Datasource\ResultSetInterface saveManyOrFail(iterable $entities, $options = [])
- * @method \UppyManager\Model\Entity\File[]|\Cake\Datasource\ResultSetInterface|false deleteMany(iterable $entities, $options = [])
- * @method \UppyManager\Model\Entity\File[]|\Cake\Datasource\ResultSetInterface deleteManyOrFail(iterable $entities, $options = [])
+ * @method \CakeDC\Uppy\Model\Entity\File newEmptyEntity()
+ * @method \CakeDC\Uppy\Model\Entity\File newEntity(array $data, array $options = [])
+ * @method \CakeDC\Uppy\Model\Entity\File[] newEntities(array $data, array $options = [])
+ * @method \CakeDC\Uppy\Model\Entity\File get($primaryKey, $options = [])
+ * @method \CakeDC\Uppy\Model\Entity\File findOrCreate($search, ?callable $callback = null, $options = [])
+ * @method \CakeDC\Uppy\Model\Entity\File patchEntity(\Cake\Datasource\EntityInterface $entity, array $data, array $options = [])
+ * @method \CakeDC\Uppy\Model\Entity\File[] patchEntities(iterable $entities, array $data, array $options = [])
+ * @method \CakeDC\Uppy\Model\Entity\File|false save(\Cake\Datasource\EntityInterface $entity, $options = [])
+ * @method \CakeDC\Uppy\Model\Entity\File saveOrFail(\Cake\Datasource\EntityInterface $entity, $options = [])
+ * @method \CakeDC\Uppy\Model\Entity\File[]|\Cake\Datasource\ResultSetInterface|false saveMany(iterable $entities, $options = [])
+ * @method \CakeDC\Uppy\Model\Entity\File[]|\Cake\Datasource\ResultSetInterface saveManyOrFail(iterable $entities, $options = [])
+ * @method \CakeDC\Uppy\Model\Entity\File[]|\Cake\Datasource\ResultSetInterface|false deleteMany(iterable $entities, $options = [])
+ * @method \CakeDC\Uppy\Model\Entity\File[]|\Cake\Datasource\ResultSetInterface deleteManyOrFail(iterable $entities, $options = [])
  */
 class FilesTable extends Table
 {

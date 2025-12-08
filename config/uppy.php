@@ -26,6 +26,7 @@ return [
             'application/vnd.ms-excel',
             'application/vnd.ms-powerpoint',
             'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            'image/jpeg'
         ],
         'AcceptedExtensions' => [
             'pdf',
@@ -35,12 +36,14 @@ return [
             'xls',
             'ppt',
             'pptx',
+            'jpg',
+            'jpeg'
         ],
         /*
         * S3 configuration to manage files
         */
         'S3' => [
-            'contants' => [
+            'constants' => [
                 'lifeTimeGetObject' => '+20 minutes',
                 'lifeTimePutObject' => '+5 minutes',
             ],

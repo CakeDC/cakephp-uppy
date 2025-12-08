@@ -16,7 +16,7 @@ use Cake\TestSuite\TestCase;
 use CakeDC\Uppy\Model\Table\FilesTable;
 
 /**
- * UppyManager\Model\Table\FilesTable Test Case
+ * CakeDC\Uppy\Model\Table\FilesTable Test Case
  */
 class FilesTableTest extends TestCase
 {

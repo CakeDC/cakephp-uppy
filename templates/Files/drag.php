@@ -38,23 +38,24 @@ use Cake\Utility\Text;
             <div id="drag-drop-area"></div>
 
             <?php
-            echo $this->Html->scriptBlock(sprintf('let debug = %s;', (Configure::read('debug')=='1')?"true":"false"));
+            $this->Uppy->assets([
+                'uppy' => [
+                    'restrictions' => ['maxNumberOfFiles' => 1],
+                    'id' => 'uppyFile',
+                ],
+                'dashboard' => [
+                    'target' => '#drag-drop-area',
+                ],
+            ]);
             echo $this->Html->scriptBlock(sprintf('let formId = "%s";', $formId));
             echo $this->Html->scriptBlock(sprintf('let csrfToken = %s;', json_encode($this->request->getAttribute('csrfToken'))));
             echo $this->Html->scriptBlock(sprintf('let signUrl = "%s";', Router::url(['prefix' => false, 'plugin' => 'CakeDC/Uppy', 'controller' => 'Files', 'action' => 'sign'])));
             echo $this->Html->scriptBlock(sprintf('let saveUrl = "%s";', Router::url(['prefix' => false, 'plugin' => 'CakeDC/Uppy', 'controller' => 'Files', 'action' => 'save'])));
             echo $this->Html->scriptBlock(sprintf('let file_not_saved = "%s";', __('The file could not be saved. Please, try again.')));
             ?>
-            <?php $this->start('css'); ?>
-                <?php echo $this->Html->css('CakeDC/Uppy.uppy.min.css'); ?>
-            <?php $this->end(); ?>
-
-            <?php $this->start('script'); ?>
-                <?php echo $this->Html->script('CakeDC/Uppy.uppy.min.js'); ?>
-            <?php $this->end(); ?>
 
             <?php $this->start('bottom_script'); ?>
-                <?php echo $this->Html->script('CakeDC/Uppy.drag.js'); ?>
+                <?php echo $this->Html->script('CakeDC/Uppy.drag.js', ['type' => 'module']); ?>
             <?php $this->end(); ?>
 
         <?php endif; ?>

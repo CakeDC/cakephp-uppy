@@ -1,14 +1,4 @@
-document.querySelector('.Uppy').innerHTML = ''
-
-var uppy = new Uppy.Core({ debug: debug, autoProceed: true })
-uppy.use(Uppy.FileInput, {
-    target: '.Uppy',
-})
-uppy.use(Uppy.ProgressBar, {
-    target: '.UppyProgressBar',
-    hideAfterFinish: false,
-})
-uppy.use(Uppy.AwsS3, {
+window.uppy.use(window.Uppy.AwsS3, {
     getUploadParameters (file) {
         let body = JSON.stringify({
                 filename: file.name,
@@ -42,9 +32,9 @@ uppy.use(Uppy.AwsS3, {
             }
         })
     }
-});            
+});
 
-uppy.on('upload-success', (file, response) => {
+window.uppy.on('upload-success', (file, response) => {
 
     const url = response.uploadURL
     const fileName = file.name
