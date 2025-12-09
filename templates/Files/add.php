@@ -24,11 +24,8 @@ use Cake\Routing\Router;
                 <?php echo $this->Form->create($file); ?>
                 <?php echo $this->Form->control('model', ['type' => 'text', 'name' => 'model']); ?>
                 <?php echo $this->Form->control('foreign_key', ['type' => 'text', 'name' => 'foreign_key']); ?>
-                <div class="Uppy">
-                    <?php echo $this->Form->control('files', ['type' => 'file', 'name' => 'files[]', 'multiple' => 'multiple']); ?>
-                </div>
+                <?php echo $this->Uppy->widget('files', ['multiple' => true]); ?>
                 <?php echo $this->Form->end(); ?>
-                <div class="UppyProgressBar"></div>
                 <div class="uploaded-files">
                     <h5><?php echo __('Uploaded files:');?></h5>
                     <ol></ol>
@@ -40,23 +37,15 @@ use Cake\Routing\Router;
             </div>
 
             <?php
-            echo $this->Html->scriptBlock(sprintf('let debug = %s;', (Configure::read('debug')=='1')?"true":"false"));
+            $this->Uppy->assets();
             echo $this->Html->scriptBlock(sprintf('let csrfToken = %s;', json_encode($this->request->getAttribute('csrfToken'))));
             echo $this->Html->scriptBlock(sprintf('let signUrl = "%s";', Router::url(['prefix' => false, 'plugin' => 'CakeDC/Uppy', 'controller' => 'Files', 'action' => 'sign'])));
             echo $this->Html->scriptBlock(sprintf('let saveUrl = "%s";', Router::url(['prefix' => false, 'plugin' => 'CakeDC/Uppy', 'controller' => 'Files', 'action' => 'save'])));
             echo $this->Html->scriptBlock(sprintf('let file_not_saved = "%s";', __('The file could not be saved. Please, try again.')));
             ?>
 
-            <?php $this->start('css'); ?>
-                <?php echo $this->Html->css('CakeDC/Uppy.uppy.min.css'); ?>
-            <?php $this->end(); ?>
-
-            <?php $this->start('script'); ?>
-                <?php echo $this->Html->script('CakeDC/Uppy.uppy.min.js'); ?>
-            <?php $this->end(); ?>
-
             <?php $this->start('bottom_script'); ?>
-                <?php echo $this->Html->script('CakeDC/Uppy.add.js'); ?>
+                <?php echo $this->Html->script('CakeDC/Uppy.add.js', ['type' => 'module']); ?>
             <?php $this->end(); ?>
 
         <?php endif; ?>

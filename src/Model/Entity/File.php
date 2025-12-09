@@ -32,7 +32,7 @@ use Cake\ORM\Entity;
  * @property string|null $metadata
  * @property int $foreign_key
  *
- * @property \UppyManager\Model\Entity\User $user
+ * @property \CakeDC\Uppy\Model\Entity\User $user
  */
 class File extends Entity
 {

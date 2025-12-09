@@ -23,7 +23,7 @@ use CakeDC\Uppy\Util\S3Trait;
 /**
  * Files Controller
  *
- * @method \UppyManager\Model\Entity\File[]|\Cake\Datasource\ResultSetInterface paginate($object = null, array $settings = [])
+ * @method \CakeDC\Uppy\Model\Entity\File[]|\Cake\Datasource\ResultSetInterface paginate($object = null, array $settings = [])
  */
 class FilesController extends AppController
 {
@@ -143,6 +143,7 @@ class FilesController extends AppController
         } else {
             $result['error'] = true;
             $result['message'] = __('The association to file could not be saved');
+            $result['entities'] = $files;
         }
 
         $this->viewBuilder()->setClassName('Json');

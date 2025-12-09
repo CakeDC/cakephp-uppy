@@ -19,7 +19,7 @@ use Cake\Http\MiddlewareQueue;
 use Cake\Routing\RouteBuilder;
 
 /**
- * Plugin for UppyManager
+ * Plugin for CakeDC\Uppy
  */
 class Plugin extends BasePlugin
 {

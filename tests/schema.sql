@@ -1,1 +1,1 @@
--- Test database schema for UppyManager
+-- Test database schema for CakeDC\Uppy
