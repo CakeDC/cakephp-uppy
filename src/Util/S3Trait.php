@@ -212,4 +212,30 @@ trait S3Trait
             throw new \Exception('Folder doesn\'t exist. Please try again.');
         }
     }
+
+    /**
+     * Sets public permissions (ACL "public-read") on an object in S3/DigitalOcean Space.
+     *
+     * This method uses the S3 configuration defined in `Configure::read('Uppy.S3.config')`
+     * and the bucket defined in `Configure::read('Uppy.S3.bucket')`.
+     * The object is identified by the provided key.
+     *
+     * After executing this method, the object will be publicly accessible via
+     * its URL in the bucket or the configured CDN.
+     *
+     * @param string $key The full key of the object in the bucket (e.g., "cliente1/hola.jpg").
+     *
+     * @throws \Aws\Exception\AwsException If an error occurs while applying the ACL permissions on S3.
+     *
+     * @return void
+     */
+    public function setPublicPermissions(string $key): void
+    {
+        $s3Client = new \Aws\S3\S3Client(Configure::read('Uppy.S3.config'));
+        $s3Client->putObjectAcl([
+            'Bucket' => Configure::read('Uppy.S3.bucket'),
+            'Key'    => $key,
+            'ACL'    => 'public-read',
+        ]);
+    }
 }
