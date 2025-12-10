@@ -223,7 +223,7 @@ trait S3Trait
      * After executing this method, the object will be publicly accessible via
      * its URL in the bucket or the configured CDN.
      *
-     * @param string $key The full key of the object in the bucket (e.g., "cliente1/hola.jpg").
+     * @param string $key The full key of the object in the bucket (e.g., "client1/image.jpg").
      *
      * @throws \Aws\Exception\AwsException If an error occurs while applying the ACL permissions on S3.
      *
