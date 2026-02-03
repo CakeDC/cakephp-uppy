@@ -50,6 +50,9 @@ class UppyHelper extends Helper
 
         $this->Html->css($cssUrl, ['block' => 'css']);
 
+        if (isset($options['multiple']) && !$options['multiple']) {
+            $options['uppy'] = array_merge($options['uppy'] ?? [], ['restrictions' => ['maxNumberOfFiles' => 1]]);
+        }
         $uppyOptions = array_merge(['debug' => Configure::read('debug'), 'autoProceed' => true], $options['uppy'] ?? []);
         $dashboardOptions = array_merge($this->getConfig('dashboard'), $options['dashboard'] ?? []);
         $uppyOptionsJson = json_encode($uppyOptions);
@@ -72,15 +75,10 @@ class UppyHelper extends Helper
      */
     public function widget(string $fieldName, array $options = []): string
     {
-        $options['multiple'] = $options['multiple'] ?? false;
-        $fileInput = $this->Form->control($fieldName, [
-            'type' => 'file',
-            'name' => 'files[]',
-            'multiple' => $options['multiple'],
-        ]);
-
+        $script = $this->Html->scriptBlock(sprintf('let csrfToken = %s;', json_encode($this->getView()->getRequest()->getAttribute('csrfToken'))));
+        $script .= $this->Html->scriptBlock(sprintf('let signUrl = "%s";', \Cake\Routing\Router::url(['prefix' => false, 'plugin' => 'CakeDC/Uppy', 'controller' => 'Files', 'action' => 'sign'])));
         $dashboardContainer = $this->Html->div('Uppy', '');
 
-        return $fileInput . $dashboardContainer;
+        return $dashboardContainer . $script;
     }
 }

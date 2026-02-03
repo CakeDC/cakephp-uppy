@@ -53,7 +53,7 @@ trait S3Trait
      * @param string $name string filename
      * @return bool result operation
      */
-    protected function deleteObject(string $path, string $name): bool
+    public function deleteObject(string $path, string $name): bool
     {
         if (Configure::read('Uppy.S3.config.connection') === 'dummy') {
             return true;
@@ -82,7 +82,7 @@ trait S3Trait
      * @param string $name string filename
      * @return \Psr\Http\Message\RequestInterface
      */
-    protected function presignedUrl(string $path, string $name): string
+    public function presignedUrl(string $path, string $name): string
     {
         if (Configure::read('Uppy.S3.config.connection') === 'dummy') {
             return 'https://example.com';

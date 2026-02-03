@@ -46,10 +46,10 @@ class File extends Entity
      * @var array
      */
     protected $_accessible = [
-        'user_id' => false,
-        'model' => false,
-        'filename' => false,
-        'filesize' => false,
+        'user_id' => true,
+        'model' => true,
+        'filename' => true,
+        'filesize' => true,
         'mime_type' => true,
         'extension' => true,
         'hash' => true,

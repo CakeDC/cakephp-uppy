@@ -24,7 +24,7 @@ use Cake\Routing\Router;
                 <?php echo $this->Form->create($file); ?>
                 <?php echo $this->Form->control('model', ['type' => 'text', 'name' => 'model']); ?>
                 <?php echo $this->Form->control('foreign_key', ['type' => 'text', 'name' => 'foreign_key']); ?>
-                <?php echo $this->Uppy->widget('files', ['multiple' => true]); ?>
+                <?php echo $this->Uppy->widget('files'); ?>
                 <?php echo $this->Form->end(); ?>
                 <div class="uploaded-files">
                     <h5><?php echo __('Uploaded files:');?></h5>
@@ -37,14 +37,14 @@ use Cake\Routing\Router;
             </div>
 
             <?php
-            $this->Uppy->assets();
+            $this->Uppy->assets(['multiple' => false]);
             echo $this->Html->scriptBlock(sprintf('let csrfToken = %s;', json_encode($this->request->getAttribute('csrfToken'))));
             echo $this->Html->scriptBlock(sprintf('let signUrl = "%s";', Router::url(['prefix' => false, 'plugin' => 'CakeDC/Uppy', 'controller' => 'Files', 'action' => 'sign'])));
             echo $this->Html->scriptBlock(sprintf('let saveUrl = "%s";', Router::url(['prefix' => false, 'plugin' => 'CakeDC/Uppy', 'controller' => 'Files', 'action' => 'save'])));
             echo $this->Html->scriptBlock(sprintf('let file_not_saved = "%s";', __('The file could not be saved. Please, try again.')));
             ?>
 
-            <?php $this->start('bottom_script'); ?>
+            <?php $this->append('script'); ?>
                 <?php echo $this->Html->script('CakeDC/Uppy.add.js', ['type' => 'module']); ?>
             <?php $this->end(); ?>
 

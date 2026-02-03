@@ -102,14 +102,14 @@ Once the helper is loaded, you can use it in your view templates to create the U
 
 ```php
 // Load Uppy assets and initialize the Uppy instance
-$this->Uppy->assets();
+$this->Uppy->assets(['multiple' => true]);
 
 // Create the Uppy widget
-echo $this->Uppy->widget('files', ['multiple' => true]);
+echo $this->Uppy->widget('files');
 
 // Add your custom Uppy configuration
-$this->start('bottom_script');
-    echo $this->Html->script('CakeDC/Uppy.add.js');
+$this->append('bottom_script');
+    echo $this->Html->script('CakeDC/Uppy.add.js', ['type' => 'module']);
 $this->end();
 ```
 

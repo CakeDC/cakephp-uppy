@@ -16,9 +16,11 @@ use ArrayObject;
 use Cake\Core\Configure;
 use Cake\Database\Expression\QueryExpression;
 use Cake\Datasource\EntityInterface;
+use Cake\Event\Event;
 use Cake\Event\EventInterface;
 use Cake\I18n\FrozenTime;
 use Cake\I18n\Number;
+use Cake\ORM\Entity;
 use Cake\ORM\Query;
 use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
@@ -132,9 +134,7 @@ class FilesTable extends Table
             ->allowEmptyString('metadata');
 
         $validator
-            ->integer('foreign_key')
-            ->requirePresence('foreign_key', 'create')
-            ->notEmptyString('foreign_key');
+            ->integer('foreign_key');
 
         return $validator;
     }
@@ -172,6 +172,16 @@ class FilesTable extends Table
         if (Configure::read('Uppy.Props.deleteFileS3')) {
             $this->deleteObject($entity->path, $entity->filename);
         }
+    }
+
+    public function beforeSave(Event $event, Entity $entity, $options)
+    {
+        if ($entity->isNew()) {
+            $presignedUrl = $this->presignedUrl($entity->path, $entity->filename);
+            $resource = @fopen($presignedUrl, 'rb');
+            $entity->set('hash', sha1((string)$resource));
+        }
+
     }
 
     /**
