@@ -50,6 +50,13 @@ class UppyHelper extends Helper
 
         $this->Html->css($cssUrl, ['block' => 'css']);
 
+        $useFileInput = ($options['ui'] ?? '') === 'fileInput';
+
+        if ($useFileInput) {
+            $this->assetsFileInput($jsUrl, $options);
+            return;
+        }
+
         if (isset($options['multiple']) && !$options['multiple']) {
             $options['uppy'] = array_merge($options['uppy'] ?? [], ['restrictions' => ['maxNumberOfFiles' => 1]]);
         }
@@ -63,6 +70,63 @@ class UppyHelper extends Helper
             window.Uppy = Uppy;
             window.uppy = new Uppy.Uppy($uppyOptionsJson);
             window.uppy.use(Uppy.Dashboard, $dashboardOptionsJson);
+        JS;
+
+        $this->Html->scriptBlock($script, ['block' => 'script', 'type' => 'module']);
+    }
+
+    /**
+     * Load Uppy for fileInput mode: no Dashboard, expose createFileInput() to bind existing file input to Uppy + AwsS3.
+     *
+     * @param string $jsUrl Uppy bundle URL
+     * @param array $options
+     * @return void
+     */
+    protected function assetsFileInput(string $jsUrl, array $options): void
+    {
+        $signUrl = \Cake\Routing\Router::url(['prefix' => false, 'plugin' => 'CakeDC/Uppy', 'controller' => 'Files', 'action' => 'sign']);
+        $csrfToken = json_encode($this->getView()->getRequest()->getAttribute('csrfToken'));
+        $maxFiles = isset($options['multiple']) && $options['multiple'] ? 0 : 1;
+        $maxFilesJson = json_encode($maxFiles);
+
+        $script = <<<JS
+            import * as Uppy from '$jsUrl';
+            window.Uppy = Uppy;
+            window.uppySignUrl = "$signUrl";
+            window.uppyCsrfToken = $csrfToken;
+            window.UppyHelper = {
+                createFileInput(opts) {
+                    const signUrl = opts.signUrl || window.uppySignUrl;
+                    const csrfToken = opts.csrfToken != null ? opts.csrfToken : window.uppyCsrfToken;
+                    const maxFiles = opts.maxFiles != null ? opts.maxFiles : $maxFilesJson;
+                    const uppy = new Uppy.Uppy({
+                        debug: false,
+                        autoProceed: true,
+                        restrictions: maxFiles ? { maxNumberOfFiles: maxFiles } : {}
+                    });
+                    uppy.use(Uppy.AwsS3, {
+                        getUploadParameters(file) {
+                            const body = JSON.stringify({ filename: file.name, contentType: file.type });
+                            return fetch(signUrl, {
+                                method: 'post',
+                                credentials: 'same-origin',
+                                headers: {
+                                    accept: 'application/json',
+                                    'content-type': 'application/json',
+                                    'X-CSRF-Token': csrfToken
+                                },
+                                body: body
+                            })
+                                .then(r => r.json())
+                                .then(data => {
+                                    if (data.error || (data.code != 200 && data.message)) return false;
+                                    return { method: data.method, url: data.url, fields: data.fields, headers: data.headers };
+                                });
+                        }
+                    });
+                    return uppy;
+                }
+            };
         JS;
 
         $this->Html->scriptBlock($script, ['block' => 'script', 'type' => 'module']);
