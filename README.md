@@ -115,6 +115,32 @@ $this->end();
 
 The `assets` method loads the Uppy v5 CSS and JavaScript from the CDN and initializes the `Uppy` and `Dashboard` instances. The `widget` method generates the necessary HTML for the Uppy Dashboard. The `add.js` file should contain your custom Uppy configuration, such as the `AwsS3` plugin and event listeners.
 
+### File Input mode (headless, custom UI)
+
+For forms with existing markup (button + progress bar + file list) where you want Uppy to handle S3 uploads without the Dashboard widget, use `'ui' => 'fileInput'`:
+
+```php
+// In your view
+$this->Uppy->assets(['ui' => 'fileInput']);
+```
+
+This loads Uppy core + AwsS3 (no Dashboard) and exposes `window.UppyHelper.createFileInput(opts)`. In your page script:
+
+```javascript
+const uppy = window.UppyHelper.createFileInput({ maxFiles: 1 });
+const fileInput = document.querySelector('#my-file-input');
+fileInput.addEventListener('change', (e) => {
+    [...(e.target.files || [])].forEach(f => uppy.addFile({ name: f.name, type: f.type, data: f }));
+    e.target.value = '';
+});
+uppy.on('upload-success', (file, response) => {
+    const path = (response.url || '').split('/').pop();
+    document.querySelector('#payload').value = JSON.stringify({ items: [{ path, filename: file.name, ... }] });
+});
+```
+
+Options: `signUrl`, `csrfToken`, `maxFiles` (0 = unlimited). Requires `credentials: 'same-origin'` for session auth. Submit the JSON payload with your form.
+
 Enpoints
 -------
 
