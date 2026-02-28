@@ -166,10 +166,11 @@ trait S3Trait
             'SourceFile' => $sourceFilePath,
         ];
         $result = $s3Client->putObject($s3Options);
-        if (!array_key_exists('@metadata', $result) || !array_key_exists('statusCode', $result['@metadata'])) {
+        $metadata = $result->get('@metadata');
+        if (empty($metadata) || !isset($metadata['statusCode'])) {
             throw new \Exception('Error on response data. Please try again.');
         }
-        if ($result['@metadata']['statusCode'] !== 200) {
+        if ($metadata['statusCode'] !== 200) {
             throw new \Exception('Error coping/moving file. Please try again.');
         }
     }
