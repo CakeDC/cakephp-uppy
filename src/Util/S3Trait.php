@@ -238,4 +238,71 @@ trait S3Trait
             'ACL'    => 'public-read',
         ]);
     }
+
+    /**
+     * List files in the S3 bucket and generate a presigned URL for each one.
+     *
+     * @param string $prefix Optional folder path or prefix to filter files.
+     * @param int $maxKeys Optional maximum number of files to return (default 1000).
+     * @return array List of objects including 'Key', 'Size', and 'presigned_url'.
+     */
+    public function listFilesWithUrls(string $prefix = '', int $maxKeys = 1000): array
+    {
+        $s3Client = new \Aws\S3\S3Client(Configure::read('Uppy.S3.config'));
+
+        $options = [
+            'Bucket' => Configure::read('Uppy.S3.bucket'),
+            'MaxKeys' => $maxKeys,
+        ];
+
+        if (!empty($prefix)) {
+            $options['Prefix'] = $prefix;
+        }
+
+        try {
+            $result = $s3Client->listObjectsV2($options);
+            $objects = $result->get('Contents') ?? [];
+
+            return array_map(function ($object) {
+                $object['presigned_url'] = $this->presignedUrl(
+                    $object['Key'],
+                    basename($object['Key'])
+                );
+
+                return $object;
+            }, $objects);
+
+        } catch (\Aws\Exception\AwsException $e) {
+            throw new \Exception('Error listing files with URLs from S3: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * List files in the S3 bucket, optionally filtered by a prefix (folder).
+     *
+     * @param string $prefix Optional folder path or prefix to filter files.
+     * @param int $maxKeys Optional maximum number of files to return (default 1000).
+     * @return array List of objects containing 'Key', 'LastModified', 'Size', etc.
+     */
+    public function listFiles(string $prefix = '', int $maxKeys = 1000): array
+    {
+        $s3Client = new \Aws\S3\S3Client(Configure::read('Uppy.S3.config'));
+
+        $options = [
+            'Bucket' => Configure::read('Uppy.S3.bucket'),
+            'MaxKeys' => $maxKeys,
+        ];
+
+        if (!empty($prefix)) {
+            $options['Prefix'] = $prefix;
+        }
+
+        try {
+            $result = $s3Client->listObjectsV2($options);
+
+            return $result->get('Contents') ?? [];
+        } catch (\Aws\Exception\AwsException $e) {
+            throw new \Exception('Error listing files from S3: ' . $e->getMessage());
+        }
+    }
 }
