@@ -22,6 +22,9 @@
         "cakephp/migrations": "^4.0.0",
         "markstory/asset_compress": "^5.0.0"
     },
+    "suggest": {
+        "google/cloud-storage": "Required to use the GCS storage adapter (^1.50)"
+    },
     "autoload": {
         "psr-4": {
             "CakeDC\\Uppy\\": "src"

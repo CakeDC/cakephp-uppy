@@ -19,7 +19,8 @@ use Cake\Http\Response;
 use Cake\ORM\Exception\MissingTableClassException;
 use Cake\Utility\Inflector;
 use Cake\Utility\Text;
-use CakeDC\Uppy\Util\S3Trait;
+use CakeDC\Uppy\Storage\AdapterFactory;
+use CakeDC\Uppy\Storage\StorageAdapterInterface;
 use function Cake\I18n\__;
 
 /**
@@ -29,7 +30,7 @@ use function Cake\I18n\__;
  */
 class FilesController extends AppController
 {
-    use S3Trait;
+    private StorageAdapterInterface $storageAdapter;
 
     /**
      * Initialize method
@@ -41,6 +42,7 @@ class FilesController extends AppController
     public function initialize(): void
     {
         parent::initialize();
+        $this->storageAdapter = AdapterFactory::create();
         if (!$this->components()->has('FormProtection')) {
             $this->loadComponent('FormProtection');
         }
@@ -65,7 +67,7 @@ class FilesController extends AppController
         /** @var \CakeDC\Uppy\Model\Entity\File $file */
         $file = $this->Files->get($id);
 
-        $presignedUrl = $this->presignedUrl($file->path, $file->filename);
+        $presignedUrl = $this->storageAdapter->presignedUrl($file->path);
 
         return $this->redirect($presignedUrl);
     }
@@ -170,6 +172,11 @@ class FilesController extends AppController
         $this->getRequest()->allowMethod(['post', 'delete']);
         $file = $this->Files->get($id);
         if ($this->Files->delete($file)) {
+            $shouldDelete = Configure::read('Uppy.Props.deleteFileStorage',
+                Configure::read('Uppy.Props.deleteFileS3', true));
+            if ($shouldDelete) {
+                $this->storageAdapter->deleteObject($file->path);
+            }
             $this->Flash->success(__('The file has been deleted.'));
         } else {
             $this->Flash->error(__('The file could not be deleted. Please, try again.'));
@@ -199,7 +206,7 @@ class FilesController extends AppController
             throw new PageOutOfBoundsException(__('contenType {0} is not valid', h($contentType)));
         }
 
-        $presignedRequest = $this->createPresignedRequest($filename, $contentType);
+        $presignedRequest = $this->storageAdapter->createPresignedRequest($filename, $contentType);
 
         return $this->getResponse()
             ->withHeader('content-type', 'application/json')

@@ -24,7 +24,8 @@ use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
 use CakeDC\Uppy\Model\Entity\File;
-use CakeDC\Uppy\Util\S3Trait;
+use CakeDC\Uppy\Storage\AdapterFactory;
+use CakeDC\Uppy\Storage\StorageAdapterInterface;
 use function Cake\I18n\__;
 
 /**
@@ -42,7 +43,19 @@ use function Cake\I18n\__;
  */
 class FilesTable extends Table
 {
-    use S3Trait;
+    private StorageAdapterInterface $storageAdapter;
+
+    /**
+     * @return void
+     */
+    public function getStorageAdapter(): StorageAdapterInterface
+    {
+        if (!isset($this->storageAdapter)) {
+            $this->storageAdapter = AdapterFactory::create();
+        }
+
+        return $this->storageAdapter;
+    }
 
     /**
      * Initialize method
@@ -158,7 +171,7 @@ class FilesTable extends Table
     }
 
     /**
-     * If it's configured prop deleteFileS3 delete file in S3 repository
+     * If it's configured prop deleteFileStorage delete file from storage
      *
      * @param \Cake\Event\EventInterface $event The beforeSave event that was fired
      * @param \CakeDC\Uppy\Model\Entity\File $entity The entity that is going to be saved
@@ -167,8 +180,10 @@ class FilesTable extends Table
      */
     public function afterDelete(EventInterface $event, File $entity, ArrayObject $options): void
     {
-        if (Configure::read('Uppy.Props.deleteFileS3', false)) {
-            $this->deleteObject($entity->path, $entity->filename);
+        $shouldDelete = Configure::read('Uppy.Props.deleteFileStorage',
+            Configure::read('Uppy.Props.deleteFileS3', false));
+        if ($shouldDelete) {
+            $this->getStorageAdapter()->deleteObject($entity->path);
         }
     }
 
@@ -220,7 +235,7 @@ class FilesTable extends Table
                     $row = [];
                     $row['filename'] = $file->filename;
                     $row['extension'] = $file->extension;
-                    $row['signedUrl'] = $this->presignedUrl($file->path, $file->filename);
+                    $row['signedUrl'] = $this->getStorageAdapter()->presignedUrl($file->path);
                     $row['filesize'] = Number::toReadableSize($file->filesize ?? 0);
                     $row['created'] = $file->created?->i18nFormat('yyyy-MM-dd');
                     $row['id'] = $file->id;
