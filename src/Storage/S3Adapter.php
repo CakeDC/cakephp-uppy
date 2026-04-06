@@ -34,6 +34,17 @@ class S3Adapter implements StorageAdapterInterface
         return (string)Configure::readOrFail('Uppy.S3.bucket');
     }
 
+    private function getLegacyAwareLifetime(string $operation): string
+    {
+        $newKey = "Uppy.S3.constants.{$operation}";
+        $legacyKey = "Uppy.S3.contants.{$operation}";
+
+        return (string)(
+            Configure::read($newKey)
+            ?? Configure::readOrFail($legacyKey)
+        );
+    }
+
     public function createPresignedRequest(string $path, string $contentType): RequestInterface
     {
         if (Configure::read('Uppy.S3.config.connection') === 'dummy') {
@@ -49,7 +60,7 @@ class S3Adapter implements StorageAdapterInterface
 
         return $this->getClient()->createPresignedRequest(
             $command,
-            Configure::readOrFail('Uppy.S3.constants.lifeTimePutObject'),
+            $this->getLegacyAwareLifetime('lifeTimePutObject'),
         );
     }
 
@@ -63,7 +74,10 @@ class S3Adapter implements StorageAdapterInterface
             'Bucket' => $this->bucket(),
             'Key' => $path,
         ]);
-        $request = $this->getClient()->createPresignedRequest($cmd, "+{$ttlSeconds} seconds");
+        $expires = $ttlSeconds === 3600
+            ? $this->getLegacyAwareLifetime('lifeTimeGetObject')
+            : "+{$ttlSeconds} seconds";
+        $request = $this->getClient()->createPresignedRequest($cmd, $expires);
 
         return (string)$request->getUri();
     }

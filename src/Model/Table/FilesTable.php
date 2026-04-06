@@ -45,6 +45,14 @@ class FilesTable extends Table
 {
     private StorageAdapterInterface $storageAdapter;
 
+    private function getUsersAliasModel(): string
+    {
+        return (string)Configure::read(
+            'Uppy.Props.usersAliasModel',
+            Configure::readOrFail('Uppy.Props.usersModel')
+        );
+    }
+
     /**
      * @return void
      */
@@ -73,7 +81,7 @@ class FilesTable extends Table
 
         $this->addBehavior('Timestamp');
 
-        $this->belongsTo(Configure::readOrFail('Uppy.Props.usersAliasModel'), [
+        $this->belongsTo($this->getUsersAliasModel(), [
             'foreignKey' => 'user_id',
             'className' => Configure::readOrFail('Uppy.Props.usersModel'),
         ]);
@@ -162,7 +170,7 @@ class FilesTable extends Table
         $rules->add(
             $rules->existsIn(
                 'user_id',
-                Configure::readOrFail('Uppy.Props.usersAliasModel')
+                $this->getUsersAliasModel()
             ),
             ['errorField' => 'user_id']
         );
