@@ -203,7 +203,11 @@ class FilesController extends AppController
         if ($this->request->getData('filename') === null) {
             throw new PageOutOfBoundsException(__('filename is required'));
         }
+        $prefix = $this->request->getData('prefix');
         $filename = Text::uuid() . '-' . Text::slug($this->request->getData('filename'));
+        if (!empty($prefix)) {
+            $filename = trim($prefix, '/') . '/' . $filename;
+        }
 
         $contentType = $this->request->getData('contentType');
         if (!in_array($contentType, Configure::read('Uppy.AcceptedContentTypes'))) {

@@ -27,11 +27,17 @@ class UppyHelper extends Helper
         ],
         'dashboard' => [
             'inline' => true,
-            'target' => '.Uppy',
+            'target' => null,
         ],
     ];
 
     /**
+     * Load Uppy CSS and expose the Uppy namespace as window.Uppy.
+     *
+     * Pass `['dashboard' => ['target' => '#my-element']]` to also initialise
+     * the Dashboard plugin. Without a target the Dashboard is not loaded,
+     * avoiding the "Invalid target" error on file-input–based upload forms.
+     *
      * @param array $options
      * @return void
      */
@@ -50,17 +56,22 @@ class UppyHelper extends Helper
 
         $this->Html->css($cssUrl, ['block' => 'css']);
 
-        $uppyOptions = array_merge(['debug' => Configure::read('debug'), 'autoProceed' => true], $options['uppy'] ?? []);
-        $dashboardOptions = array_merge($this->getConfig('dashboard'), $options['dashboard'] ?? []);
-        $uppyOptionsJson = json_encode($uppyOptions);
-        $dashboardOptionsJson = json_encode($dashboardOptions);
+        $dashboardTarget = $options['dashboard']['target'] ?? $this->getConfig('dashboard.target') ?? null;
 
-        $script = <<<JS
-            import * as Uppy from '$jsUrl';
-            window.Uppy = Uppy;
-            window.uppy = new Uppy.Uppy($uppyOptionsJson);
-            window.uppy.use(Uppy.Dashboard, $dashboardOptionsJson);
-        JS;
+        if ($dashboardTarget) {
+            $uppyOptions = array_merge(['debug' => Configure::read('debug'), 'autoProceed' => true], $options['uppy'] ?? []);
+            $dashboardOptions = array_merge($this->getConfig('dashboard'), $options['dashboard'] ?? []);
+            $uppyOptionsJson = json_encode($uppyOptions);
+            $dashboardOptionsJson = json_encode($dashboardOptions);
+            $script = <<<JS
+                import * as Uppy from '{$jsUrl}';
+                window.Uppy = Uppy;
+                window.uppy = new Uppy.Uppy({$uppyOptionsJson});
+                window.uppy.use(Uppy.Dashboard, {$dashboardOptionsJson});
+            JS;
+        } else {
+            $script = "import * as Uppy from '{$jsUrl}'; window.Uppy = Uppy;";
+        }
 
         $this->Html->scriptBlock($script, ['block' => 'script', 'type' => 'module']);
     }
