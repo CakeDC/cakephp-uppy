@@ -3,8 +3,9 @@ CakeDC Uppy Plugin
 
 The **Uppy** plugin covers the following features:
 
-* Upload directly files to configured S3 from frontside using a signature
-* Save on configured table path to uploaded files on S3, mime_type, date, metadata and relation to user and specified related model in database indicated
+* Upload files directly from the browser to a configured cloud storage backend using a presigned URL
+* Pluggable storage drivers: **Amazon S3**, **Google Cloud Storage**, and **Cloudflare R2** (selectable via `Uppy.driver`)
+* Persist file path, mime type, date, metadata and the relation to the user (or other related model) in the `uppy_files` table
 
 Requirements
 ------------
