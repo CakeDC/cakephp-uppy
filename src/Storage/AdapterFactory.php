@@ -17,14 +17,17 @@ use InvalidArgumentException;
 
 class AdapterFactory
 {
+    /**
+     * @return \CakeDC\Uppy\Storage\StorageAdapterInterface
+     */
     public static function create(): StorageAdapterInterface
     {
         $driver = Configure::read('Uppy.driver', 's3');
 
         return match ($driver) {
-            's3'    => new S3Adapter(),
-            'gcs'   => new GcsAdapter(),
-            'r2'    => new R2Adapter(),
+            's3' => new S3Adapter(),
+            'gcs' => new GcsAdapter(),
+            'r2' => new R2Adapter(),
             default => throw new InvalidArgumentException("Unknown Uppy driver: {$driver}"),
         };
     }

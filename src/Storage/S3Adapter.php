@@ -20,31 +20,34 @@ use Psr\Http\Message\RequestInterface;
 
 class S3Adapter implements StorageAdapterInterface
 {
+    /**
+     * @param \Aws\S3\S3Client|null $client
+     */
     public function __construct(private ?S3Client $client = null)
     {
     }
 
+    /**
+     * @return \Aws\S3\S3Client
+     */
     private function getClient(): S3Client
     {
         return $this->client ??= new S3Client(Configure::readOrFail('Uppy.S3.config'));
     }
 
+    /**
+     * @return string
+     */
     private function bucket(): string
     {
         return (string)Configure::readOrFail('Uppy.S3.bucket');
     }
 
-    private function getLegacyAwareLifetime(string $operation): string
-    {
-        $newKey = "Uppy.S3.constants.{$operation}";
-        $legacyKey = "Uppy.S3.contants.{$operation}";
-
-        return (string)(
-            Configure::read($newKey)
-            ?? Configure::readOrFail($legacyKey)
-        );
-    }
-
+    /**
+     * @param string $path
+     * @param string $contentType
+     * @return \Psr\Http\Message\RequestInterface
+     */
     public function createPresignedRequest(string $path, string $contentType): RequestInterface
     {
         if (Configure::read('Uppy.S3.config.connection') === 'dummy') {
@@ -60,10 +63,15 @@ class S3Adapter implements StorageAdapterInterface
 
         return $this->getClient()->createPresignedRequest(
             $command,
-            $this->getLegacyAwareLifetime('lifeTimePutObject'),
+            Configure::readOrFail('Uppy.S3.constants.lifeTimePutObject'),
         );
     }
 
+    /**
+     * @param string $path
+     * @param int $ttlSeconds
+     * @return string
+     */
     public function presignedUrl(string $path, int $ttlSeconds = 3600): string
     {
         if (Configure::read('Uppy.S3.config.connection') === 'dummy') {
@@ -74,14 +82,15 @@ class S3Adapter implements StorageAdapterInterface
             'Bucket' => $this->bucket(),
             'Key' => $path,
         ]);
-        $expires = $ttlSeconds === 3600
-            ? $this->getLegacyAwareLifetime('lifeTimeGetObject')
-            : "+{$ttlSeconds} seconds";
-        $request = $this->getClient()->createPresignedRequest($cmd, $expires);
+        $request = $this->getClient()->createPresignedRequest($cmd, "+{$ttlSeconds} seconds");
 
         return (string)$request->getUri();
     }
 
+    /**
+     * @param string $path
+     * @return bool
+     */
     public function deleteObject(string $path): bool
     {
         if (Configure::read('Uppy.S3.config.connection') === 'dummy') {

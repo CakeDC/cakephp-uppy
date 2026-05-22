@@ -172,8 +172,10 @@ class FilesController extends AppController
         $this->getRequest()->allowMethod(['post', 'delete']);
         $file = $this->Files->get($id);
         if ($this->Files->delete($file)) {
-            $shouldDelete = Configure::read('Uppy.Props.deleteFileStorage',
-                Configure::read('Uppy.Props.deleteFileS3', true));
+            $shouldDelete = Configure::read(
+                'Uppy.Props.deleteFileStorage',
+                Configure::read('Uppy.Props.deleteFileS3', true),
+            );
             if ($shouldDelete) {
                 $this->storageAdapter->deleteObject($file->path);
             }
@@ -230,7 +232,6 @@ class FilesController extends AppController
     public function add(): void
     {
         $this->getRequest()->allowMethod('get');
-
         $file = $this->Files->newEmptyEntity();
 
         $this->set(compact('file'));

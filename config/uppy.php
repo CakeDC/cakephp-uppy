@@ -28,7 +28,6 @@ return [
         'driver' => env('UPPY_DRIVER', 's3'),
 
         'Props' => [
-            'usersAliasModel' => 'Users',
             'usersModel' => 'Users',
             /*
              * When true and a file record is deleted, the object is also

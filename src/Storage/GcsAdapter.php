@@ -22,10 +22,16 @@ use Psr\Http\Message\RequestInterface;
 
 class GcsAdapter implements StorageAdapterInterface
 {
+    /**
+     * @param \Google\Cloud\Storage\StorageClient|null $client
+     */
     public function __construct(private ?StorageClient $client = null)
     {
     }
 
+    /**
+     * @return \Google\Cloud\Storage\StorageClient
+     */
     private function getClient(): StorageClient
     {
         return $this->client ??= new StorageClient([
@@ -34,11 +40,20 @@ class GcsAdapter implements StorageAdapterInterface
         ]);
     }
 
+    /**
+     * @return string
+     */
     private function bucket(): string
     {
         return (string)Configure::readOrFail('Uppy.GCS.bucket');
     }
 
+    /**
+     * @param string $path
+     * @param string $contentType
+     * @return \Psr\Http\Message\RequestInterface
+     * @throws \Exception
+     */
     public function createPresignedRequest(string $path, string $contentType): RequestInterface
     {
         $expires = new DateTime(Configure::readOrFail('Uppy.GCS.lifeTimePutObject'));
@@ -54,6 +69,11 @@ class GcsAdapter implements StorageAdapterInterface
         return (new Request($signedUrl, 'PUT'))->withHeader('Content-Type', $contentType);
     }
 
+    /**
+     * @param string $path
+     * @param int $ttlSeconds
+     * @return string
+     */
     public function presignedUrl(string $path, int $ttlSeconds = 3600): string
     {
         $expires = new DateTime("+{$ttlSeconds} seconds");
@@ -67,6 +87,10 @@ class GcsAdapter implements StorageAdapterInterface
             ]);
     }
 
+    /**
+     * @param string $path
+     * @return bool
+     */
     public function deleteObject(string $path): bool
     {
         try {
