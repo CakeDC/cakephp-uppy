@@ -295,6 +295,43 @@ class FilesControllerTest extends TestCase
         $this->assertStringContainsString('not authorized', strtolower($body['result']['message']));
     }
 
+    public function testSaveDoesNotPersistClientProvidedHash(): void
+    {
+        $signedKey = 'hash-test.png';
+        $this->session([
+            'Auth.userId' => 1,
+            'Uppy.pendingUploads' => [$signedKey => time()],
+        ]);
+
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+        $this->post('/uppy/files/save', json_encode([
+            'items' => [[
+                'model' => 'Users',
+                'foreign_key' => 1,
+                'filename' => 'test.png',
+                'filesize' => 100,
+                'extension' => 'png',
+                'mime_type' => 'image/png',
+                'path' => $signedKey,
+                'hash' => 'attacker-controlled-hash', // should be ignored
+                'metadata' => '{"evil":"payload"}', // should be ignored
+            ]],
+        ]));
+
+        $this->assertResponseOk();
+        $body = json_decode((string)$this->_response->getBody(), true);
+        $this->assertFalse($body['result']['error']);
+
+        $row = ConnectionManager::get('test')
+            ->execute("SELECT hash, metadata, path FROM uppy_files WHERE path = '{$signedKey}'")
+            ->fetchAll('assoc');
+
+        $this->assertNotEmpty($row, 'File should have been saved');
+        $this->assertNotSame('attacker-controlled-hash', $row[0]['hash']);
+        $this->assertNull($row[0]['metadata']);
+        $this->assertSame($signedKey, $row[0]['path']); // path must be the server-validated key
+    }
+
     /** Insert a file row directly and return its ID. */
     protected function insertFile(array $overrides = []): string
     {

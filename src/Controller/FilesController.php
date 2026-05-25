@@ -195,6 +195,7 @@ class FilesController extends AppController
             $file->extension = $item['extension'];
             $file->user_id = $recordOwnerId; // already verified above
             $file->model = $tableAlias;
+            $file->path = $path; // server-validated path (from session token)
             $files[] = $file;
         }
 
