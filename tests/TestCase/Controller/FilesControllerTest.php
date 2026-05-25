@@ -332,6 +332,75 @@ class FilesControllerTest extends TestCase
         $this->assertSame($signedKey, $row[0]['path']); // path must be the server-validated key
     }
 
+    public function testSaveTokenCannotBeReusedAfterFailedValidation(): void
+    {
+        $signedKey = 'reuse-test.png';
+        $this->session([
+            'Auth.userId'         => 1,
+            'Uppy.pendingUploads' => [$signedKey => time()],
+        ]);
+
+        // First attempt: use a valid path token but an invalid model — should fail validation
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+        $this->post('/uppy/files/save', json_encode([
+            'items' => [[
+                'model'       => 'NonExistentModel99',
+                'foreign_key' => 1,
+                'filename'    => 'test.png',
+                'filesize'    => 100,
+                'extension'   => 'png',
+                'mime_type'   => 'image/png',
+                'path'        => $signedKey,
+            ]],
+        ]));
+        $first = json_decode((string)$this->_response->getBody(), true);
+        $this->assertTrue($first['result']['error'], 'First attempt must fail due to invalid model');
+
+        // Second attempt: use the SAME token with a valid payload
+        // Must be rejected — the token should have been consumed even on error
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+        $this->post('/uppy/files/save', json_encode([
+            'items' => [[
+                'model'       => 'Users',
+                'foreign_key' => 1,
+                'filename'    => 'test.png',
+                'filesize'    => 100,
+                'extension'   => 'png',
+                'mime_type'   => 'image/png',
+                'path'        => $signedKey,
+            ]],
+        ]));
+        $second = json_decode((string)$this->_response->getBody(), true);
+        $this->assertTrue($second['result']['error'], 'Token must be invalidated even after a failed save');
+        $this->assertStringContainsString('path', strtolower($second['result']['message']));
+    }
+
+    public function testViewBlocksUnauthenticatedUser(): void
+    {
+        // Insert a file with no owner (user_id = NULL)
+        $fileId = $this->insertFile(['user_id' => null]);
+
+        // Do NOT call loginAs() — simulate unauthenticated request
+        $this->get('/uppy/files/view/' . $fileId);
+
+        $this->assertResponseCode(403);
+    }
+
+    public function testDeleteBlocksUnauthenticatedUser(): void
+    {
+        $id = \Cake\Utility\Text::uuid();
+        \Cake\Datasource\ConnectionManager::get('test')->execute(
+            'INSERT INTO uppy_files (id,user_id,model,filename,filesize,mime_type,extension,hash,path,adapter,created,modified,metadata,foreign_key)
+             VALUES (:id,:user_id,:model,:filename,:filesize,:mime_type,:extension,:hash,:path,:adapter,:created,:modified,:metadata,:foreign_key)',
+            ['id'=>$id,'user_id'=>null,'model'=>'Users','filename'=>'test.png','filesize'=>1024,'mime_type'=>'image/png','extension'=>'png','hash'=>'abc','path'=>'uuid-no-owner.png','adapter'=>'s3','created'=>'2024-01-01 00:00:00','modified'=>'2024-01-01 00:00:00','metadata'=>null,'foreign_key'=>1]
+        );
+
+        // No loginAs() — unauthenticated
+        $this->delete('/uppy/files/delete/' . $id);
+
+        $this->assertResponseCode(403);
+    }
+
     /** Insert a file row directly and return its ID. */
     protected function insertFile(array $overrides = []): string
     {
