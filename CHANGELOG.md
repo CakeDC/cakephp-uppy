@@ -13,6 +13,7 @@ Releases for CakePHP 5.0
     * Fix: `folderExists` array-vs-int comparison corrected — empty Contents list now correctly throws instead of silently returning false
     * Fix: `filter_var` wrapper removed from S3 credential env reads (was masking null values)
     * New: migration `20260525000001_AddUserIdIndexToUppyFiles` adds an index on `uppy_files.user_id`
+    * New: migration `20260525000002_ChangeFileSizeInUppyFilesTable` widens `filesize` from `INT` to `BIGINT` (supports files > 2 GB)
     * **Breaking changes**: see UPGRADE.md for full migration guide
 
 * 2.0.3
