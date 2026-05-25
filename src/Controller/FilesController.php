@@ -128,7 +128,7 @@ class FilesController extends AppController
                 return;
             } catch (DatabaseException) {
                 $result['error'] = true;
-                $result['message'] = __('there is no table {0} to associate the file', $tableAlias);
+                $result['message'] = __('Could not retrieve record with id {0} from {1}', $foreignKey, $tableAlias);
                 $this->set('result', $result);
                 $this->viewBuilder()->setOption('serialize', ['result']);
 

@@ -149,9 +149,9 @@ class FilesTable extends Table
         $rules->add(
             $rules->existsIn(
                 'user_id',
-                Configure::readOrFail('Uppy.Props.usersAliasModel')
+                Configure::readOrFail('Uppy.Props.usersAliasModel'),
             ),
-            ['errorField' => 'user_id']
+            ['errorField' => 'user_id'],
         );
 
         return $rules;
@@ -187,22 +187,22 @@ class FilesTable extends Table
         int|string $patient_id,
         array $q = [],
         ?string $from_date = null,
-        ?string $to_date = null
+        ?string $to_date = null,
     ): SelectQuery {
         if ($q['value'] ?? false) {
-            $query->where(fn (QueryExpression $exp): QueryExpression => $exp
+            $query->where(fn(QueryExpression $exp): QueryExpression => $exp
                 ->like($this->aliasField('filename'), "%{$q['value']}%"));
         }
 
-        $query->where(fn (QueryExpression $exp): QueryExpression => $exp
+        $query->where(fn(QueryExpression $exp): QueryExpression => $exp
             ->eq($this->aliasField('user_id'), $patient_id));
 
         if ($from_date && $to_date) {
-            $query->where(fn (QueryExpression $exp): QueryExpression => $exp->between(
+            $query->where(fn(QueryExpression $exp): QueryExpression => $exp->between(
                 $this->aliasField('created'),
                 DateTime::parse($from_date)->startOfDay(),
                 DateTime::parse($to_date)->endOfDay(),
-                'datetime'
+                'datetime',
             ));
         }
 
@@ -215,7 +215,7 @@ class FilesTable extends Table
                 'path',
                 'created',
             ])
-            ->formatResults(fn (CollectionInterface $results): CollectionInterface => $results
+            ->formatResults(fn(CollectionInterface $results): CollectionInterface => $results
                 ->map(function (File $file): array {
                     $row = [];
                     $row['filename'] = $file->filename;

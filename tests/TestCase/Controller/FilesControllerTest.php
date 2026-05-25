@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace CakeDC\Uppy\Test\TestCase\Controller;
 
+use App\Application;
 use Cake\Core\Configure;
 use Cake\Datasource\ConnectionManager;
 use Cake\ORM\TableRegistry;
@@ -18,7 +19,7 @@ class FilesControllerTest extends TestCase
     {
         parent::setUp();
 
-        $this->configApplication(\App\Application::class, [CONFIG]);
+        $this->configApplication(Application::class, [CONFIG]);
 
         // Routes only register when debug=true
         Configure::write('debug', true);
@@ -27,21 +28,21 @@ class FilesControllerTest extends TestCase
         Configure::write('Uppy', [
             'Props' => [
                 'usersAliasModel' => 'Users',
-                'usersModel'      => 'Users',
-                'deleteFileS3'    => false,
-                'tableFiles'      => 'uppy_files',
+                'usersModel' => 'Users',
+                'deleteFileS3' => false,
+                'tableFiles' => 'uppy_files',
             ],
             'AcceptedContentTypes' => ['image/png', 'application/pdf'],
-            'AcceptedExtensions'   => ['png', 'pdf'],
+            'AcceptedExtensions' => ['png', 'pdf'],
             'S3' => [
                 'constants' => [
                     'lifeTimeGetObject' => '+20 minutes',
                     'lifeTimePutObject' => '+5 minutes',
                 ],
                 'config' => [
-                    'version'     => 'latest',
-                    'region'      => 'us-east-1',
-                    'connection'  => 'dummy',
+                    'version' => 'latest',
+                    'region' => 'us-east-1',
+                    'connection' => 'dummy',
                     'credentials' => ['key' => 'fake', 'secret' => 'fake'],
                 ],
                 'bucket' => 'test-bucket',
@@ -104,13 +105,13 @@ class FilesControllerTest extends TestCase
         $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
         $this->post('/uppy/files/save', json_encode([
             'items' => [[
-                'model'       => 'NonExistentTable99',
+                'model' => 'NonExistentTable99',
                 'foreign_key' => 'user-1-uuid',
-                'filename'    => 'test.png',
-                'filesize'    => 100,
-                'extension'   => 'png',
-                'mime_type'   => 'image/png',
-                'path'        => 'uuid-test.png',
+                'filename' => 'test.png',
+                'filesize' => 100,
+                'extension' => 'png',
+                'mime_type' => 'image/png',
+                'path' => 'uuid-test.png',
             ]],
         ]));
 
@@ -125,19 +126,19 @@ class FilesControllerTest extends TestCase
     {
         $id = Text::uuid();
         $row = array_merge([
-            'id'          => $id,
-            'user_id'     => 'user-1-uuid',
-            'model'       => 'Users',
-            'filename'    => 'test.png',
-            'filesize'    => 1024,
-            'mime_type'   => 'image/png',
-            'extension'   => 'png',
-            'hash'        => 'abc123',
-            'path'        => 'some-uuid-test.png',
-            'adapter'     => 's3',
-            'created'     => '2024-01-01 00:00:00',
-            'modified'    => '2024-01-01 00:00:00',
-            'metadata'    => null,
+            'id' => $id,
+            'user_id' => 'user-1-uuid',
+            'model' => 'Users',
+            'filename' => 'test.png',
+            'filesize' => 1024,
+            'mime_type' => 'image/png',
+            'extension' => 'png',
+            'hash' => 'abc123',
+            'path' => 'some-uuid-test.png',
+            'adapter' => 's3',
+            'created' => '2024-01-01 00:00:00',
+            'modified' => '2024-01-01 00:00:00',
+            'metadata' => null,
             'foreign_key' => 'user-1-uuid',
         ], $overrides);
 
@@ -146,7 +147,7 @@ class FilesControllerTest extends TestCase
                 (id,user_id,model,filename,filesize,mime_type,extension,hash,path,adapter,created,modified,metadata,foreign_key)
              VALUES
                 (:id,:user_id,:model,:filename,:filesize,:mime_type,:extension,:hash,:path,:adapter,:created,:modified,:metadata,:foreign_key)',
-            $row
+            $row,
         );
 
         return $id;

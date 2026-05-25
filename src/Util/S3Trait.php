@@ -99,7 +99,9 @@ trait S3Trait
                 'Body' => '',
             ]);
 
-            return $s3Client->createPresignedRequest($command, Configure::readOrFail('Uppy.S3.contants.lifeTimePutObject'));
+            $lifeTime = Configure::readOrFail('Uppy.S3.contants.lifeTimePutObject');
+
+            return $s3Client->createPresignedRequest($command, $lifeTime);
         }
     }
 
