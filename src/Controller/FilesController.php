@@ -174,13 +174,26 @@ class FilesController extends AppController
 
                 return;
             }
+            // Issue #4 fix: verify the related record belongs to the current user
+            $model = Configure::readOrFail('Uppy.Props.usersModel');
+            $relation_key = Inflector::singularize(mb_strtolower($model)) . '_id';
+            $recordOwnerId = $register->{$relation_key};
+            $currentUserId = $this->getCurrentUserId();
+
+            if (!$currentUserId || (string)$recordOwnerId !== (string)$currentUserId) {
+                $result['error'] = true;
+                $result['message'] = __('You are not authorized to associate files with this record');
+                $this->set('result', $result);
+                $this->viewBuilder()->setOption('serialize', ['result']);
+
+                return;
+            }
+
             $file = $this->Files->newEntity($item);
             $file->filename = $item['filename'];
             $file->filesize = $item['filesize'];
             $file->extension = $item['extension'];
-            $model = Configure::readOrFail('Uppy.Props.usersModel');
-            $relation_key = Inflector::singularize(mb_strtolower($model)) . '_id';
-            $file->user_id = $register->{$relation_key};
+            $file->user_id = $recordOwnerId; // already verified above
             $file->model = $tableAlias;
             $files[] = $file;
         }

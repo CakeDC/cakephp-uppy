@@ -268,6 +268,33 @@ class FilesControllerTest extends TestCase
         $this->assertResponseCode(302);
     }
 
+    public function testSaveRejectsWhenForeignKeyBelongsToAnotherUser(): void
+    {
+        // User 2 is logged in but supplies foreign_key=1 which belongs to user 1
+        $signedKey = 'test-owned-by-other.png';
+        $this->session([
+            'Auth.userId' => 2, // logged in as user 2
+            'Uppy.pendingUploads' => [$signedKey => time()],
+        ]);
+
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+        $this->post('/uppy/files/save', json_encode([
+            'items' => [[
+                'model' => 'Users',
+                'foreign_key' => 1, // user 1's record
+                'filename' => 'test.png',
+                'filesize' => 100,
+                'extension' => 'png',
+                'mime_type' => 'image/png',
+                'path' => $signedKey,
+            ]],
+        ]));
+
+        $body = json_decode((string)$this->_response->getBody(), true);
+        $this->assertTrue($body['result']['error']);
+        $this->assertStringContainsString('not authorized', strtolower($body['result']['message']));
+    }
+
     /** Insert a file row directly and return its ID. */
     protected function insertFile(array $overrides = []): string
     {
