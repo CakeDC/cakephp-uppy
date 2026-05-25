@@ -23,6 +23,8 @@ use Cake\Utility\Inflector;
 use Cake\Utility\Text;
 use CakeDC\Uppy\Util\S3Trait;
 use UnexpectedValueException;
+use function Cake\Collection\collection;
+use function Cake\Core\h;
 use function Cake\I18n\__;
 
 /**
@@ -203,9 +205,10 @@ class FilesController extends AppController
 
         $session->write('Uppy.pendingUploads', $pendingUploads);
 
-        if ($this->Files->saveMany($files)) {
+        if ($savedFiles = $this->Files->saveMany($files)) {
             $result['error'] = false;
             $result['message'] = __('The association has been be saved correctly');
+            $result['saved_file_ids'] = collection($savedFiles)->extract('id')->toArray();
         } else {
             $result['error'] = true;
             $result['message'] = __('The association to file could not be saved');

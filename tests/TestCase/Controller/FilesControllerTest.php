@@ -406,6 +406,156 @@ class FilesControllerTest extends TestCase
         $this->assertResponseCode(403);
     }
 
+    public function testSignRejectsMissingFilename(): void
+    {
+        $this->loginAs(1);
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+        $this->post('/uppy/files/sign', json_encode(['contentType' => 'image/png']));
+        $this->assertResponseCode(404);
+    }
+
+    public function testSignRejectsInvalidContentType(): void
+    {
+        $this->loginAs(1);
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+        $this->post('/uppy/files/sign', json_encode([
+            'filename' => 'test.zip',
+            'contentType' => 'application/zip',
+        ]));
+        $this->assertResponseCode(404);
+    }
+
+    public function testSaveMissingModelReturnsError(): void
+    {
+        $signedKey = 'model-missing-test.png';
+        $this->session([
+            'Auth.userId'         => 1,
+            'Uppy.pendingUploads' => [$signedKey => time()],
+        ]);
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+        $this->post('/uppy/files/save', json_encode([
+            'items' => [[
+                'foreign_key' => 1,
+                'filename'    => 'test.png',
+                'filesize'    => 100,
+                'extension'   => 'png',
+                'mime_type'   => 'image/png',
+                'path'        => $signedKey,
+            ]],
+        ]));
+        $body = json_decode((string)$this->_response->getBody(), true);
+        $this->assertTrue($body['result']['error']);
+        $this->assertStringContainsString('model', strtolower($body['result']['message']));
+    }
+
+    public function testSaveMissingForeignKeyReturnsError(): void
+    {
+        $signedKey = 'fk-missing-test.png';
+        $this->session([
+            'Auth.userId'         => 1,
+            'Uppy.pendingUploads' => [$signedKey => time()],
+        ]);
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+        $this->post('/uppy/files/save', json_encode([
+            'items' => [[
+                'model'     => 'Users',
+                'filename'  => 'test.png',
+                'filesize'  => 100,
+                'extension' => 'png',
+                'mime_type' => 'image/png',
+                'path'      => $signedKey,
+            ]],
+        ]));
+        $body = json_decode((string)$this->_response->getBody(), true);
+        $this->assertTrue($body['result']['error']);
+        $this->assertStringContainsString('foreign key', strtolower($body['result']['message']));
+    }
+
+    public function testSaveForeignKeyNotFoundReturnsError(): void
+    {
+        $signedKey = 'fk-not-found-test.png';
+        $this->session([
+            'Auth.userId'         => 1,
+            'Uppy.pendingUploads' => [$signedKey => time()],
+        ]);
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+        $this->post('/uppy/files/save', json_encode([
+            'items' => [[
+                'model'       => 'Users',
+                'foreign_key' => 9999,
+                'filename'    => 'test.png',
+                'filesize'    => 100,
+                'extension'   => 'png',
+                'mime_type'   => 'image/png',
+                'path'        => $signedKey,
+            ]],
+        ]));
+        $body = json_decode((string)$this->_response->getBody(), true);
+        $this->assertTrue($body['result']['error']);
+        $this->assertStringContainsString('9999', $body['result']['message']);
+    }
+
+    public function testSaveResultIncludesFileIds(): void
+    {
+        $signedKey = 'ids-test.png';
+        $this->session([
+            'Auth.userId'         => 1,
+            'Uppy.pendingUploads' => [$signedKey => time()],
+        ]);
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+        $this->post('/uppy/files/save', json_encode([
+            'items' => [[
+                'model'       => 'Users',
+                'foreign_key' => 1,
+                'filename'    => 'test.png',
+                'filesize'    => 100,
+                'extension'   => 'png',
+                'mime_type'   => 'image/png',
+                'path'        => $signedKey,
+            ]],
+        ]));
+        $body = json_decode((string)$this->_response->getBody(), true);
+        $this->assertFalse($body['result']['error']);
+        $this->assertArrayHasKey('saved_file_ids', $body['result']);
+        $this->assertCount(1, $body['result']['saved_file_ids']);
+    }
+
+    public function testSaveMultipleItems(): void
+    {
+        $key1 = 'multi-item-1.png';
+        $key2 = 'multi-item-2.png';
+        $this->session([
+            'Auth.userId'         => 1,
+            'Uppy.pendingUploads' => [$key1 => time(), $key2 => time()],
+        ]);
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+        $this->post('/uppy/files/save', json_encode([
+            'items' => [
+                [
+                    'model'       => 'Users',
+                    'foreign_key' => 1,
+                    'filename'    => 'first.png',
+                    'filesize'    => 100,
+                    'extension'   => 'png',
+                    'mime_type'   => 'image/png',
+                    'path'        => $key1,
+                ],
+                [
+                    'model'       => 'Users',
+                    'foreign_key' => 1,
+                    'filename'    => 'second.png',
+                    'filesize'    => 200,
+                    'extension'   => 'png',
+                    'mime_type'   => 'image/png',
+                    'path'        => $key2,
+                ],
+            ],
+        ]));
+        $body = json_decode((string)$this->_response->getBody(), true);
+        $this->assertFalse($body['result']['error']);
+        $this->assertCount(2, $body['result']['saved_file_ids']);
+    }
+
     /** Insert a file row directly and return its ID. */
     protected function insertFile(array $overrides = []): string
     {

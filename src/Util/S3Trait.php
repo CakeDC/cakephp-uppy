@@ -143,7 +143,7 @@ trait S3Trait
      */
     public function uploadFile(string $sourceFilePath, string $destinationS3Path): void
     {
-        $s3Client = new S3Client(Configure::readOrFail('Uppy.S3.config'));
+        $s3Client = $this->makeS3Client();
         $s3Options = [
             'Bucket' => Configure::readOrFail('Uppy.S3.bucket'),
             'Key' => $destinationS3Path,

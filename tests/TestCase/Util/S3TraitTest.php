@@ -136,4 +136,115 @@ class S3TraitTest extends TestCase
 
         $this->assertTrue($subject->folderExists('some/path/'));
     }
+
+    // ── uploadFile ────────────────────────────────────────────────────────────
+
+    public function testUploadFileThrowsWhenMetadataMissing(): void
+    {
+        $mockClient = $this->getMockBuilder(S3Client::class)
+            ->disableOriginalConstructor()
+            ->addMethods(['putObject'])
+            ->getMock();
+        $mockClient->method('putObject')->willReturn(new Result([])); // no @metadata
+
+        $subject = new class ($mockClient) {
+            use \CakeDC\Uppy\Util\S3Trait;
+
+            public function __construct(private readonly S3Client $injectedClient)
+            {
+            }
+
+            protected function makeS3Client(): S3Client
+            {
+                return $this->injectedClient;
+            }
+
+            public function callUploadFile(string $src, string $dst): void
+            {
+                $this->uploadFile($src, $dst);
+            }
+        };
+
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage('Error on response data');
+        $subject->callUploadFile('/any/path', 'destination/path');
+    }
+
+    public function testUploadFileThrowsWhenStatusNot200(): void
+    {
+        $mockClient = $this->getMockBuilder(S3Client::class)
+            ->disableOriginalConstructor()
+            ->addMethods(['putObject'])
+            ->getMock();
+        $mockClient->method('putObject')->willReturn(new Result(['@metadata' => ['statusCode' => 500]]));
+
+        $subject = new class ($mockClient) {
+            use \CakeDC\Uppy\Util\S3Trait;
+
+            public function __construct(private readonly S3Client $injectedClient)
+            {
+            }
+
+            protected function makeS3Client(): S3Client
+            {
+                return $this->injectedClient;
+            }
+
+            public function callUploadFile(string $src, string $dst): void
+            {
+                $this->uploadFile($src, $dst);
+            }
+        };
+
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage('Error coping/moving file');
+        $subject->callUploadFile('/any/path', 'destination/path');
+    }
+
+    public function testUploadFileSucceedsWithValidResponse(): void
+    {
+        $mockClient = $this->getMockBuilder(S3Client::class)
+            ->disableOriginalConstructor()
+            ->addMethods(['putObject'])
+            ->getMock();
+        $mockClient->method('putObject')->willReturn(new Result(['@metadata' => ['statusCode' => 200]]));
+
+        $subject = new class ($mockClient) {
+            use \CakeDC\Uppy\Util\S3Trait;
+
+            public function __construct(private readonly S3Client $injectedClient)
+            {
+            }
+
+            protected function makeS3Client(): S3Client
+            {
+                return $this->injectedClient;
+            }
+
+            public function callUploadFile(string $src, string $dst): void
+            {
+                $this->uploadFile($src, $dst);
+            }
+        };
+
+        $subject->callUploadFile('/any/path', 'destination/path');
+        $this->assertTrue(true); // no exception thrown
+    }
+
+    public function testDeleteObjectReturnsTrueInDummyMode(): void
+    {
+        Configure::write('Uppy.S3.config.connection', 'dummy');
+
+        $subject = new class {
+            use \CakeDC\Uppy\Util\S3Trait;
+
+            public function callDeleteObject(?string $path, ?string $name): bool
+            {
+                return $this->deleteObject($path, $name);
+            }
+        };
+
+        $this->assertTrue($subject->callDeleteObject('some-path.png', 'photo.png'));
+        $this->assertTrue($subject->callDeleteObject(null, null));
+    }
 }
