@@ -225,6 +225,49 @@ class FilesControllerTest extends TestCase
         $this->assertMatchesRegularExpression('/^[a-f0-9\-]+-photo-png$/', $body['key']);
     }
 
+    public function testViewForbiddenForOtherUserFile(): void
+    {
+        // File belongs to user 1, but user 2 is logged in
+        $fileId = $this->insertFile(['user_id' => 1, 'path' => 'uuid-test.png']);
+        $this->loginAs(2);
+
+        $this->get('/uppy/files/view/' . $fileId);
+
+        $this->assertResponseCode(403);
+    }
+
+    public function testViewAllowedForOwner(): void
+    {
+        $fileId = $this->insertFile(['user_id' => 1, 'path' => 'uuid-test.png']);
+        $this->loginAs(1);
+
+        $this->get('/uppy/files/view/' . $fileId);
+
+        // Controller redirects to presigned URL
+        $this->assertResponseCode(302);
+    }
+
+    public function testDeleteForbiddenForOtherUserFile(): void
+    {
+        $fileId = $this->insertFile(['user_id' => 1]);
+        $this->loginAs(2);
+
+        $this->delete('/uppy/files/delete/' . $fileId);
+
+        $this->assertResponseCode(403);
+    }
+
+    public function testDeleteAllowedForOwner(): void
+    {
+        $fileId = $this->insertFile(['user_id' => 1]);
+        $this->loginAs(1);
+
+        $this->delete('/uppy/files/delete/' . $fileId);
+
+        // After delete, redirects to index
+        $this->assertResponseCode(302);
+    }
+
     /** Insert a file row directly and return its ID. */
     protected function insertFile(array $overrides = []): string
     {

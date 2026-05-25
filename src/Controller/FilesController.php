@@ -16,6 +16,7 @@ use Cake\Core\Configure;
 use Cake\Database\Exception\DatabaseException;
 use Cake\Datasource\Exception\RecordNotFoundException;
 use Cake\Datasource\Paging\Exception\PageOutOfBoundsException;
+use Cake\Http\Exception\ForbiddenException;
 use Cake\Http\Response;
 use Cake\ORM\Exception\MissingTableClassException;
 use Cake\Utility\Inflector;
@@ -46,7 +47,29 @@ class FilesController extends AppController
         if (!$this->components()->has('FormProtection')) {
             $this->loadComponent('FormProtection');
         }
-        $this->FormProtection->setConfig('unlockedActions', ['sign','save']);
+        $this->FormProtection->setConfig('unlockedActions', ['sign', 'save', 'delete']);
+        if (!$this->components()->has('Flash')) {
+            $this->loadComponent('Flash');
+        }
+    }
+
+    /**
+     * Returns the current authenticated user's identifier.
+     *
+     * Reads from the PSR-7 'identity' request attribute (set by
+     * cakephp/authentication middleware) with a fallback to the
+     * 'Auth.userId' session key for testing and legacy apps.
+     *
+     * @return string|int|null
+     */
+    protected function getCurrentUserId(): string|int|null
+    {
+        $identity = $this->getRequest()->getAttribute('identity');
+        if ($identity !== null) {
+            return $identity->getIdentifier();
+        }
+
+        return $this->getRequest()->getSession()->read('Auth.userId');
     }
 
     /**
@@ -66,6 +89,10 @@ class FilesController extends AppController
     {
         /** @var \CakeDC\Uppy\Model\Entity\File $file */
         $file = $this->Files->get($id);
+
+        if ((string)$file->user_id !== (string)$this->getCurrentUserId()) {
+            throw new ForbiddenException();
+        }
 
         $presignedUrl = $this->presignedUrl($file->path, $file->filename);
 
@@ -193,6 +220,11 @@ class FilesController extends AppController
     {
         $this->getRequest()->allowMethod(['post', 'delete']);
         $file = $this->Files->get($id);
+
+        if ((string)$file->user_id !== (string)$this->getCurrentUserId()) {
+            throw new ForbiddenException();
+        }
+
         if ($this->Files->delete($file)) {
             $this->Flash->success(__('The file has been deleted.'));
         } else {
