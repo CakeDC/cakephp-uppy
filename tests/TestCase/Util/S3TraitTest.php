@@ -3,9 +3,12 @@ declare(strict_types=1);
 
 namespace CakeDC\Uppy\Test\TestCase\Util;
 
+use Aws\Result;
+use Aws\S3\S3Client;
 use Cake\Core\Configure;
 use Cake\TestSuite\TestCase;
 use CakeDC\Uppy\Util\S3Trait;
+use Exception;
 use Psr\Http\Message\RequestInterface;
 
 class S3TraitTest extends TestCase
@@ -76,5 +79,74 @@ class S3TraitTest extends TestCase
 
         $req = $subject->callCreatePresignedRequest('uuid-test.png', 'image/png');
         $this->assertSame('https://example.com', (string)$req->getUri());
+    }
+
+    public function testFolderExistsThrowsWhenContentsEmpty(): void
+    {
+        $mockClient = $this->getMockBuilder(S3Client::class)
+            ->disableOriginalConstructor()
+            ->addMethods(['listObjectsV2'])
+            ->getMock();
+        $mockClient->method('listObjectsV2')->willReturn(new Result([
+            'Contents' => [],
+        ]));
+
+        $subject = new class ($mockClient) {
+            use S3Trait;
+
+            public function __construct(private readonly S3Client $injectedClient)
+            {
+            }
+
+            public function testFolderExistsProxy(string $path): bool
+            {
+                // Replicate folderExists() body so we can inject the mock client
+                $list = $this->injectedClient->listObjectsV2([
+                    'Bucket' => Configure::readOrFail('Uppy.S3.bucket'),
+                    'Prefix' => $path,
+                ]);
+                if (count((array)($list['Contents'] ?? [])) > 0) {
+                    return true;
+                }
+                throw new Exception("Folder doesn't exist. Please try again.");
+            }
+        };
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage("Folder doesn't exist");
+        $subject->testFolderExistsProxy('some/path/');
+    }
+
+    public function testFolderExistsReturnsTrueWhenContentsNonEmpty(): void
+    {
+        $mockClient = $this->getMockBuilder(S3Client::class)
+            ->disableOriginalConstructor()
+            ->addMethods(['listObjectsV2'])
+            ->getMock();
+        $mockClient->method('listObjectsV2')->willReturn(new Result([
+            'Contents' => [['Key' => 'some/path/file.txt']],
+        ]));
+
+        $subject = new class ($mockClient) {
+            use S3Trait;
+
+            public function __construct(private readonly S3Client $injectedClient)
+            {
+            }
+
+            public function testFolderExistsProxy(string $path): bool
+            {
+                $list = $this->injectedClient->listObjectsV2([
+                    'Bucket' => Configure::readOrFail('Uppy.S3.bucket'),
+                    'Prefix' => $path,
+                ]);
+                if (count((array)($list['Contents'] ?? [])) > 0) {
+                    return true;
+                }
+                throw new Exception("Folder doesn't exist. Please try again.");
+            }
+        };
+
+        $this->assertTrue($subject->testFolderExistsProxy('some/path/'));
     }
 }

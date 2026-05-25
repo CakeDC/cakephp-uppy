@@ -224,10 +224,10 @@ trait S3Trait
             'Bucket' => Configure::readOrFail('Uppy.S3.bucket'),
             'Prefix' => $filename,
         ]);
-        if ($list['Contents'] > 0) {
+        if (count((array)($list['Contents'] ?? [])) > 0) {
             return true;
-        } else {
-            throw new Exception('Folder doesn\'t exist. Please try again.');
         }
+
+        throw new Exception('Folder doesn\'t exist. Please try again.');
     }
 }
