@@ -356,6 +356,11 @@ class FilesControllerTest extends TestCase
         $first = json_decode((string)$this->_response->getBody(), true);
         $this->assertTrue($first['result']['error'], 'First attempt must fail due to invalid model');
 
+        // IntegrationTestTrait does not carry over controller-side session writes between requests —
+        // it re-seeds the session from $this->_session on every request. Mirror the consumed state
+        // manually so the second request sees an empty pendingUploads, exactly as the controller wrote.
+        $this->session(['Auth.userId' => 1, 'Uppy.pendingUploads' => []]);
+
         // Second attempt: use the SAME token with a valid payload
         // Must be rejected — the token should have been consumed even on error
         $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);

@@ -90,7 +90,8 @@ class FilesController extends AppController
         /** @var \CakeDC\Uppy\Model\Entity\File $file */
         $file = $this->Files->get($id);
 
-        if ((string)$file->user_id !== (string)$this->getCurrentUserId()) {
+        $currentUserId = $this->getCurrentUserId();
+        if ($currentUserId === null || (string)$file->user_id !== (string)$currentUserId) {
             throw new ForbiddenException();
         }
 
@@ -129,6 +130,7 @@ class FilesController extends AppController
             }
             // Consume the token (one-time use)
             unset($pendingUploads[$path]);
+            $session->write('Uppy.pendingUploads', $pendingUploads); // consume immediately — one-time use
             $tableAlias = $item['model'] ?? null;
             if (!$tableAlias) {
                 $result['error'] = true;
@@ -235,7 +237,8 @@ class FilesController extends AppController
         $this->getRequest()->allowMethod(['post', 'delete']);
         $file = $this->Files->get($id);
 
-        if ((string)$file->user_id !== (string)$this->getCurrentUserId()) {
+        $currentUserId = $this->getCurrentUserId();
+        if ($currentUserId === null || (string)$file->user_id !== (string)$currentUserId) {
             throw new ForbiddenException();
         }
 
