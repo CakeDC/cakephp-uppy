@@ -8,20 +8,20 @@ var uppy = new Uppy.Core({debug: debug})
     autoProceed: true,
 })
 .use(Uppy.Form, {
-    target: '#'+formId,                        
+    target: '#' + formId,
     resultName: 'uppyResult',
     getMetaFromForm: true,
     addResultToForm: true,
     multipleResults: false,
     submitOnSuccess: false,
     triggerUploadOnSubmit: false,
-})       
+})
 .use(Uppy.AwsS3, {
     getUploadParameters (file) {
         let body = JSON.stringify({
-                filename: file.name,
-                contentType: file.type,
-            });
+            filename: file.name,
+            contentType: file.type,
+        });
         return fetch(signUrl, {
             method: 'post',
             headers: {
@@ -30,17 +30,19 @@ var uppy = new Uppy.Core({debug: debug})
                 'X-CSRF-Token': csrfToken
             },
             body: body,
-        })                
+        })
         .then((response) => {
             return response.json()
         }).then((data) => {
-            if (data.error){                    
-                document.querySelector('.uploaded-response').innerHTML = file_not_saved;                                         
-            }else{
-                if (data.code!=200&&data.message!== undefined){                     
-                    document.querySelector('.uploaded-response').innerHTML = data.message;
+            if (data.error) {
+                document.querySelector('.uploaded-response').textContent = file_not_saved;
+            } else {
+                if (data.code != 200 && data.message !== undefined) {
+                    document.querySelector('.uploaded-response').textContent = data.message;
                     return false;
                 }
+                // Store the server-assigned key so the complete handler can read it
+                uppy.setFileMeta(file.id, { serverKey: data.key });
                 return {
                     method: data.method,
                     url: data.url,
@@ -50,24 +52,23 @@ var uppy = new Uppy.Core({debug: debug})
             }
         })
     }
-});            
+});
 
 uppy.on('complete', (result) => {
-    
-    if (result.successful.length == 0) return;
+
+    if (result.successful.length === 0) return;
 
     let objs = [];
-    for(j in result.successful){
+    for (let j in result.successful) {
         let obj = {};
         obj.filename = result.successful[j].data.name;
         obj.filesize = result.successful[j].data.size;
         obj.mime_type = result.successful[j].data.type;
         obj.extension = result.successful[j].extension;
-        obj.foreign_key = document.querySelector('input[name="foreign_key"]').value;           
-        obj.model = document.querySelector('input[name="model"]').value;        
-        let v = result.successful[j].uploadURL.split('/')
-        obj.path = v[v.length-1];
-        objs[objs.length] = obj;
+        obj.foreign_key = document.querySelector('input[name="foreign_key"]').value;
+        obj.model = document.querySelector('input[name="model"]').value;
+        obj.path = result.successful[j].meta.serverKey;  // server-assigned key
+        objs.push(obj);
     }
 
     let body = JSON.stringify({items: objs});
@@ -81,11 +82,11 @@ uppy.on('complete', (result) => {
         body: body,
     })
     .then((resp) => resp.json())
-    .then(function(data) {                                
-        document.querySelector('.uploaded-response').innerHTML = data.result.message;                          
+    .then(function(data) {
+        document.querySelector('.uploaded-response').textContent = data.result.message;
     })
     .catch(function(error) {
-        document.querySelector('.uploaded-response').innerHTML = error.message;  
-    });          
+        document.querySelector('.uploaded-response').textContent = error.message;
+    });
 
 })

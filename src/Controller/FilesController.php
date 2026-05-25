@@ -88,7 +88,20 @@ class FilesController extends AppController
 
         $files = [];
         $result = [];
+        $session = $this->getRequest()->getSession();
+        $pendingUploads = $session->read('Uppy.pendingUploads', []);
         foreach ($items as $item) {
+            $path = $item['path'] ?? null;
+            if (!$path || !array_key_exists($path, $pendingUploads)) {
+                $result['error'] = true;
+                $result['message'] = __('Invalid or unrecognized file path');
+                $this->set('result', $result);
+                $this->viewBuilder()->setOption('serialize', ['result']);
+
+                return;
+            }
+            // Consume the token (one-time use)
+            unset($pendingUploads[$path]);
             $tableAlias = $item['model'] ?? null;
             if (!$tableAlias) {
                 $result['error'] = true;
@@ -144,6 +157,8 @@ class FilesController extends AppController
             $file->model = $tableAlias;
             $files[] = $file;
         }
+
+        $session->write('Uppy.pendingUploads', $pendingUploads);
 
         if ($this->Files->saveMany($files)) {
             $result['error'] = false;
@@ -208,6 +223,12 @@ class FilesController extends AppController
             throw new PageOutOfBoundsException(__('contenType {0} is not valid', h($contentType)));
         }
 
+        // Store the generated key in session so save() can verify it was server-issued
+        $session = $this->getRequest()->getSession();
+        $pending = $session->read('Uppy.pendingUploads', []);
+        $pending[$filename] = time();
+        $session->write('Uppy.pendingUploads', $pending);
+
         $presignedRequest = $this->createPresignedRequest($filename, $contentType);
 
         return $this->getResponse()
@@ -215,6 +236,7 @@ class FilesController extends AppController
             ->withStringBody(json_encode([
                 'error' => false,
                 'code' => 200,
+                'key' => $filename,
                 'method' => $presignedRequest->getMethod(),
                 'url' => (string)$presignedRequest->getUri(),
                 'fields' => [],

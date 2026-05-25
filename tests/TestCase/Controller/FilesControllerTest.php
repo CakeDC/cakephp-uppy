@@ -55,7 +55,7 @@ class FilesControllerTest extends TestCase
         $conn->execute('
             CREATE TABLE uppy_files (
                 id          CHAR(36)     NOT NULL,
-                user_id     CHAR(36)         NULL,
+                user_id     INTEGER          NULL,
                 model       VARCHAR(128)     NULL,
                 filename    VARCHAR(255)     NULL,
                 filesize    INTEGER          NULL,
@@ -67,19 +67,20 @@ class FilesControllerTest extends TestCase
                 created     DATETIME         NULL,
                 modified    DATETIME         NULL,
                 metadata    TEXT             NULL,
-                foreign_key VARCHAR(36)  NOT NULL,
+                foreign_key INTEGER      NOT NULL,
                 PRIMARY KEY (id)
             )
         ');
         $conn->execute('DROP TABLE IF EXISTS users');
         $conn->execute('
             CREATE TABLE users (
-                id CHAR(36) NOT NULL,
+                id      INTEGER NOT NULL,
+                user_id INTEGER     NULL,
                 PRIMARY KEY (id)
             )
         ');
-        $conn->execute("INSERT INTO users (id) VALUES ('user-1-uuid')");
-        $conn->execute("INSERT INTO users (id) VALUES ('user-2-uuid')");
+        $conn->execute('INSERT INTO users (id, user_id) VALUES (1, 1)');
+        $conn->execute('INSERT INTO users (id, user_id) VALUES (2, 2)');
 
         TableRegistry::getTableLocator()->clear();
     }
@@ -93,25 +94,29 @@ class FilesControllerTest extends TestCase
         parent::tearDown();
     }
 
-    /** Simulate login by writing userId to session (FilesController::getCurrentUserId() reads this as fallback). */
-    protected function loginAs(string $userId): void
+    /** Simulate login by writing userId to session. */
+    protected function loginAs(int $userId): void
     {
         $this->session(['Auth.userId' => $userId]);
     }
 
     public function testSaveReturnsJsonErrorForUnknownTable(): void
     {
-        $this->loginAs('user-1-uuid');
+        $signedKey = 'uuid-test.png';
+        $this->session([
+            'Auth.userId' => 1,
+            'Uppy.pendingUploads' => [$signedKey => time()],
+        ]);
         $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
         $this->post('/uppy/files/save', json_encode([
             'items' => [[
                 'model' => 'NonExistentTable99',
-                'foreign_key' => 'user-1-uuid',
+                'foreign_key' => 1,
                 'filename' => 'test.png',
                 'filesize' => 100,
                 'extension' => 'png',
                 'mime_type' => 'image/png',
-                'path' => 'uuid-test.png',
+                'path' => $signedKey,
             ]],
         ]));
 
@@ -121,13 +126,112 @@ class FilesControllerTest extends TestCase
         $this->assertStringContainsString('NonExistentTable99', $body['result']['message']);
     }
 
+    public function testSaveRejectsPathNotSignedByServer(): void
+    {
+        $this->loginAs(1);
+
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+        $this->post('/uppy/files/save', json_encode([
+            'items' => [[
+                'model' => 'Users',
+                'foreign_key' => 1,
+                'filename' => 'test.png',
+                'filesize' => 100,
+                'extension' => 'png',
+                'mime_type' => 'image/png',
+                'path' => 'attacker-crafted-path.png', // not in session
+            ]],
+        ]));
+
+        $body = json_decode((string)$this->_response->getBody(), true);
+        $this->assertTrue($body['result']['error']);
+        $this->assertStringContainsString('path', strtolower($body['result']['message']));
+    }
+
+    public function testSaveAcceptsPathPreviouslySignedByServer(): void
+    {
+        $signedKey = 'some-uuid-test.png';
+        $this->session([
+            'Auth.userId' => 1,
+            'Uppy.pendingUploads' => [$signedKey => time()],
+        ]);
+
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+        $this->post('/uppy/files/save', json_encode([
+            'items' => [[
+                'model' => 'Users',
+                'foreign_key' => 1,
+                'filename' => 'test.png',
+                'filesize' => 100,
+                'extension' => 'png',
+                'mime_type' => 'image/png',
+                'path' => $signedKey,
+            ]],
+        ]));
+
+        $body = json_decode((string)$this->_response->getBody(), true);
+        $this->assertFalse($body['result']['error']);
+    }
+
+    public function testSaveRejectsAlreadyUsedPath(): void
+    {
+        $signedKey = 'some-uuid-test.png';
+
+        $payload = json_encode([
+            'items' => [[
+                'model' => 'Users',
+                'foreign_key' => 1,
+                'filename' => 'test.png',
+                'filesize' => 100,
+                'extension' => 'png',
+                'mime_type' => 'image/png',
+                'path' => $signedKey,
+            ]],
+        ]);
+
+        // First save — must succeed
+        $this->session([
+            'Auth.userId' => 1,
+            'Uppy.pendingUploads' => [$signedKey => time()],
+        ]);
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+        $this->post('/uppy/files/save', $payload);
+        $first = json_decode((string)$this->_response->getBody(), true);
+        $this->assertFalse($first['result']['error'], 'First save should succeed');
+
+        // Simulate the consumed state: clear pending uploads (token was used on first save)
+        $this->session(['Uppy.pendingUploads' => []]);
+
+        // Second save with same path — session token consumed, must be rejected
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+        $this->post('/uppy/files/save', $payload);
+        $second = json_decode((string)$this->_response->getBody(), true);
+        $this->assertTrue($second['result']['error'], 'Second save with same path should fail');
+    }
+
+    public function testSignResponseIncludesKey(): void
+    {
+        $this->loginAs(1);
+
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+        $this->post('/uppy/files/sign', json_encode([
+            'filename' => 'photo.png',
+            'contentType' => 'image/png',
+        ]));
+
+        $body = json_decode((string)$this->_response->getBody(), true);
+        $this->assertFalse($body['error']);
+        $this->assertArrayHasKey('key', $body);
+        $this->assertMatchesRegularExpression('/^[a-f0-9\-]+-photo-png$/', $body['key']);
+    }
+
     /** Insert a file row directly and return its ID. */
     protected function insertFile(array $overrides = []): string
     {
         $id = Text::uuid();
         $row = array_merge([
             'id' => $id,
-            'user_id' => 'user-1-uuid',
+            'user_id' => 1,
             'model' => 'Users',
             'filename' => 'test.png',
             'filesize' => 1024,
@@ -139,7 +243,7 @@ class FilesControllerTest extends TestCase
             'created' => '2024-01-01 00:00:00',
             'modified' => '2024-01-01 00:00:00',
             'metadata' => null,
-            'foreign_key' => 'user-1-uuid',
+            'foreign_key' => 1,
         ], $overrides);
 
         ConnectionManager::get('test')->execute(

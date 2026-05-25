@@ -11,9 +11,9 @@ uppy.use(Uppy.ProgressBar, {
 uppy.use(Uppy.AwsS3, {
     getUploadParameters (file) {
         let body = JSON.stringify({
-                filename: file.name,
-                contentType: file.type,
-            });
+            filename: file.name,
+            contentType: file.type,
+        });
         return fetch(signUrl, {
             method: 'post',
             headers: {
@@ -22,17 +22,19 @@ uppy.use(Uppy.AwsS3, {
                 'X-CSRF-Token': csrfToken
             },
             body: body,
-        })                
-        .then((response) => {                
+        })
+        .then((response) => {
             return response.json()
         }).then((data) => {
-            if (data.error){                    
-                document.querySelector('.uploaded-response').innerHTML = file_not_saved;                                         
-            }else{
-                if (data.code!=200&&data.message!== undefined){                     
-                    document.querySelector('.uploaded-response').innerHTML = data.message;
+            if (data.error) {
+                document.querySelector('.uploaded-response').textContent = file_not_saved;
+            } else {
+                if (data.code != 200 && data.message !== undefined) {
+                    document.querySelector('.uploaded-response').textContent = data.message;
                     return false;
                 }
+                // Store the server-assigned key so upload-success can read it
+                uppy.setFileMeta(file.id, { serverKey: data.key });
                 return {
                     method: data.method,
                     url: data.url,
@@ -42,11 +44,10 @@ uppy.use(Uppy.AwsS3, {
             }
         })
     }
-});            
+});
 
 uppy.on('upload-success', (file, response) => {
 
-    const url = response.uploadURL
     const fileName = file.name
 
     const li = document.createElement('li')
@@ -57,17 +58,17 @@ uppy.on('upload-success', (file, response) => {
     document.querySelector('.uploaded-files ol').appendChild(li);
 
     let objs = [];
-    let obj = {};        
+    let obj = {};
 
     obj.filename = file.name;
     obj.filesize = file.size;
     obj.mime_type = file.type;
     obj.extension = file.extension;
-    obj.foreign_key = document.querySelector('input[name="foreign_key"]').value;           
+    obj.foreign_key = document.querySelector('input[name="foreign_key"]').value;
     obj.model = document.querySelector('input[name="model"]').value;
-    let v = response.uploadURL.split('/')
-    obj.path = v[v.length-1];
-    objs[objs.length] = obj;
+    obj.path = file.meta.serverKey;   // server-assigned key, not URL-parsed
+
+    objs.push(obj);
 
     let body = JSON.stringify({items: objs});
     fetch(saveUrl, {
@@ -80,10 +81,10 @@ uppy.on('upload-success', (file, response) => {
         body: body,
     })
     .then((resp) => resp.json())
-    .then(function(data) {                                
-        document.querySelector('.uploaded-response').innerHTML = data.result.message;                          
+    .then(function(data) {
+        document.querySelector('.uploaded-response').textContent = data.result.message;
     })
     .catch(function(error) {
-        document.querySelector('.uploaded-response').innerHTML = error.message;                          
+        document.querySelector('.uploaded-response').textContent = error.message;
     });
 })
