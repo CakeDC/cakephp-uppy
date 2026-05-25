@@ -18,6 +18,8 @@ class FilesControllerTest extends TestCase
     {
         parent::setUp();
 
+        $this->configApplication(\App\Application::class, [CONFIG]);
+
         // Routes only register when debug=true
         Configure::write('debug', true);
 
@@ -94,6 +96,28 @@ class FilesControllerTest extends TestCase
     protected function loginAs(string $userId): void
     {
         $this->session(['Auth.userId' => $userId]);
+    }
+
+    public function testSaveReturnsJsonErrorForUnknownTable(): void
+    {
+        $this->loginAs('user-1-uuid');
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+        $this->post('/uppy/files/save', json_encode([
+            'items' => [[
+                'model'       => 'NonExistentTable99',
+                'foreign_key' => 'user-1-uuid',
+                'filename'    => 'test.png',
+                'filesize'    => 100,
+                'extension'   => 'png',
+                'mime_type'   => 'image/png',
+                'path'        => 'uuid-test.png',
+            ]],
+        ]));
+
+        $this->assertResponseOk();
+        $body = json_decode((string)$this->_response->getBody(), true);
+        $this->assertTrue($body['result']['error']);
+        $this->assertStringContainsString('NonExistentTable99', $body['result']['message']);
     }
 
     /** Insert a file row directly and return its ID. */

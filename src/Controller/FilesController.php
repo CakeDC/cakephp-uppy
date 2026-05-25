@@ -13,6 +13,7 @@ declare(strict_types=1);
 namespace CakeDC\Uppy\Controller;
 
 use Cake\Core\Configure;
+use Cake\Database\Exception\DatabaseException;
 use Cake\Datasource\Exception\RecordNotFoundException;
 use Cake\Datasource\Paging\Exception\PageOutOfBoundsException;
 use Cake\Http\Response;
@@ -20,6 +21,7 @@ use Cake\ORM\Exception\MissingTableClassException;
 use Cake\Utility\Inflector;
 use Cake\Utility\Text;
 use CakeDC\Uppy\Util\S3Trait;
+use UnexpectedValueException;
 use function Cake\I18n\__;
 
 /**
@@ -120,6 +122,13 @@ class FilesController extends AppController
             } catch (RecordNotFoundException) {
                 $result['error'] = true;
                 $result['message'] = __('there is no record with id {0} to associate the file', $foreignKey);
+                $this->set('result', $result);
+                $this->viewBuilder()->setOption('serialize', ['result']);
+
+                return;
+            } catch (DatabaseException) {
+                $result['error'] = true;
+                $result['message'] = __('there is no table {0} to associate the file', $tableAlias);
                 $this->set('result', $result);
                 $this->viewBuilder()->setOption('serialize', ['result']);
 

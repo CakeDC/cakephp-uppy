@@ -30,7 +30,8 @@
     "autoload-dev": {
         "psr-4": {
             "CakeDC\\Uppy\\Test\\": "tests/",
-            "Cake\\Test\\": "vendor/cakephp/cakephp/tests/"
+            "Cake\\Test\\": "vendor/cakephp/cakephp/tests/",
+            "App\\": "tests/test_app/src/"
         }
     },
     "scripts": {
