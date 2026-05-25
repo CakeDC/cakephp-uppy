@@ -91,6 +91,7 @@ class S3TraitTest extends TestCase
             'Contents' => [],
         ]));
 
+        // Override makeS3Client() so the real folderExists() uses the mock — no AWS calls made
         $subject = new class ($mockClient) {
             use S3Trait;
 
@@ -98,23 +99,15 @@ class S3TraitTest extends TestCase
             {
             }
 
-            public function testFolderExistsProxy(string $path): bool
+            protected function makeS3Client(): S3Client
             {
-                // Replicate folderExists() body so we can inject the mock client
-                $list = $this->injectedClient->listObjectsV2([
-                    'Bucket' => Configure::readOrFail('Uppy.S3.bucket'),
-                    'Prefix' => $path,
-                ]);
-                if (count((array)($list['Contents'] ?? [])) > 0) {
-                    return true;
-                }
-                throw new Exception("Folder doesn't exist. Please try again.");
+                return $this->injectedClient;
             }
         };
 
         $this->expectException(Exception::class);
         $this->expectExceptionMessage("Folder doesn't exist");
-        $subject->testFolderExistsProxy('some/path/');
+        $subject->folderExists('some/path/');
     }
 
     public function testFolderExistsReturnsTrueWhenContentsNonEmpty(): void
@@ -127,6 +120,7 @@ class S3TraitTest extends TestCase
             'Contents' => [['Key' => 'some/path/file.txt']],
         ]));
 
+        // Override makeS3Client() so the real folderExists() uses the mock — no AWS calls made
         $subject = new class ($mockClient) {
             use S3Trait;
 
@@ -134,19 +128,12 @@ class S3TraitTest extends TestCase
             {
             }
 
-            public function testFolderExistsProxy(string $path): bool
+            protected function makeS3Client(): S3Client
             {
-                $list = $this->injectedClient->listObjectsV2([
-                    'Bucket' => Configure::readOrFail('Uppy.S3.bucket'),
-                    'Prefix' => $path,
-                ]);
-                if (count((array)($list['Contents'] ?? [])) > 0) {
-                    return true;
-                }
-                throw new Exception("Folder doesn't exist. Please try again.");
+                return $this->injectedClient;
             }
         };
 
-        $this->assertTrue($subject->testFolderExistsProxy('some/path/'));
+        $this->assertTrue($subject->folderExists('some/path/'));
     }
 }

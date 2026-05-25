@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App;
 
+use Cake\Core\Configure;
 use Cake\Http\BaseApplication;
 use Cake\Http\Middleware\BodyParserMiddleware;
 use Cake\Http\MiddlewareQueue;
@@ -21,6 +22,16 @@ class Application extends BaseApplication
     public function bootstrap(): void
     {
         // Do NOT call parent::bootstrap() — it requires a real config/bootstrap.php.
+
+        // Prepend our test-app templates directory so test-only error templates
+        // (e.g. Error/error400.php) are found without shipping them in the plugin.
+        // __DIR__ = tests/test_app/src → dirname one level = tests/test_app
+        $testAppTemplates = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'templates' . DIRECTORY_SEPARATOR;
+        Configure::write('App.paths.templates', array_merge(
+            [$testAppTemplates],
+            (array)Configure::read('App.paths.templates', [])
+        ));
+
         $this->addPlugin('CakeDC/Uppy');
     }
 

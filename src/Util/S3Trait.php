@@ -211,6 +211,19 @@ trait S3Trait
     }
 
     /**
+     * Create an S3Client instance from configuration.
+     *
+     * Extracted as a protected hook so tests can override it to inject a mock
+     * client without making real AWS calls.
+     *
+     * @return \Aws\S3\S3Client
+     */
+    protected function makeS3Client(): S3Client
+    {
+        return new S3Client(Configure::readOrFail('Uppy.S3.config'));
+    }
+
+    /**
      * Check if folder exists in S3 bucket
      *
      * @param string $filename filename
@@ -219,7 +232,7 @@ trait S3Trait
      */
     public function folderExists(string $filename): bool
     {
-        $s3Client = new S3Client(Configure::readOrFail('Uppy.S3.config'));
+        $s3Client = $this->makeS3Client();
         $list = $s3Client->listObjectsV2([
             'Bucket' => Configure::readOrFail('Uppy.S3.bucket'),
             'Prefix' => $filename,

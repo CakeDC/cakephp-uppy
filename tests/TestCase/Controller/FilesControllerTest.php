@@ -323,7 +323,7 @@ class FilesControllerTest extends TestCase
         $this->assertFalse($body['result']['error']);
 
         $row = ConnectionManager::get('test')
-            ->execute("SELECT hash, metadata, path FROM uppy_files WHERE path = '{$signedKey}'")
+            ->execute('SELECT hash, metadata, path FROM uppy_files WHERE path = :path', ['path' => $signedKey])
             ->fetchAll('assoc');
 
         $this->assertNotEmpty($row, 'File should have been saved');
