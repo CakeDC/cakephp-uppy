@@ -32,7 +32,7 @@ class R2Adapter implements StorageAdapterInterface
      */
     private function getClient(): S3Client
     {
-        return $this->client ??= new S3Client(Configure::read('Uppy.R2.config'));
+        return $this->client ??= new S3Client(Configure::readOrFail('Uppy.R2.config'));
     }
 
     /**
@@ -50,6 +50,10 @@ class R2Adapter implements StorageAdapterInterface
      */
     public function createPresignedRequest(string $path, string $contentType): RequestInterface
     {
+        if (Configure::read('Uppy.R2.config.connection') === 'dummy') {
+            return (new Request())->withUri(new Uri('https://example.com'));
+        }
+
         $client = $this->getClient();
 
         $command = $client->getCommand('PutObject', [
@@ -66,19 +70,27 @@ class R2Adapter implements StorageAdapterInterface
 
     /**
      * @param string $path
-     * @param int $ttlSeconds
+     * @param int|null $ttlSeconds
      * @return string
      */
-    public function presignedUrl(string $path, int $ttlSeconds = 3600): string
+    public function presignedUrl(string $path, ?int $ttlSeconds = null): string
     {
+        if (Configure::read('Uppy.R2.config.connection') === 'dummy') {
+            return 'https://example.com';
+        }
+
         $client = $this->getClient();
+
+        $ttl = $ttlSeconds !== null
+            ? "+{$ttlSeconds} seconds"
+            : Configure::read('Uppy.R2.constants.lifeTimeGetObject', '+1 hour');
 
         $cmd = $client->getCommand('GetObject', [
             'Bucket' => $this->bucket(),
             'Key' => $path,
         ]);
 
-        $request = $client->createPresignedRequest($cmd, "+{$ttlSeconds} seconds");
+        $request = $client->createPresignedRequest($cmd, $ttl);
 
         return (string)$request->getUri();
     }
@@ -89,7 +101,7 @@ class R2Adapter implements StorageAdapterInterface
      */
     public function deleteObject(string $path): bool
     {
-        if (Configure::read('Uppy.R2.connection') === 'dummy') {
+        if (Configure::read('Uppy.R2.config.connection') === 'dummy') {
             return true;
         }
 

@@ -172,13 +172,6 @@ class FilesController extends AppController
         $this->getRequest()->allowMethod(['post', 'delete']);
         $file = $this->Files->get($id);
         if ($this->Files->delete($file)) {
-            $shouldDelete = Configure::read(
-                'Uppy.Props.deleteFileStorage',
-                Configure::read('Uppy.Props.deleteFileS3', true),
-            );
-            if ($shouldDelete) {
-                $this->storageAdapter->deleteObject($file->path);
-            }
             $this->Flash->success(__('The file has been deleted.'));
         } else {
             $this->Flash->error(__('The file could not be deleted. Please, try again.'));

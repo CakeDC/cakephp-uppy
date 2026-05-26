@@ -54,7 +54,7 @@ class S3Adapter implements StorageAdapterInterface
             return (new Request())->withUri(new Uri('https://example.com'));
         }
 
-        $command = $this->getClient()->getCommand('putObject', [
+        $command = $this->getClient()->getCommand('PutObject', [
             'Bucket' => $this->bucket(),
             'Key' => $path,
             'ContentType' => $contentType,
@@ -69,20 +69,24 @@ class S3Adapter implements StorageAdapterInterface
 
     /**
      * @param string $path
-     * @param int $ttlSeconds
+     * @param int|null $ttlSeconds
      * @return string
      */
-    public function presignedUrl(string $path, int $ttlSeconds = 3600): string
+    public function presignedUrl(string $path, ?int $ttlSeconds = null): string
     {
         if (Configure::read('Uppy.S3.config.connection') === 'dummy') {
             return 'https://example.com';
         }
 
+        $ttl = $ttlSeconds !== null
+            ? "+{$ttlSeconds} seconds"
+            : Configure::read('Uppy.S3.constants.lifeTimeGetObject', '+1 hour');
+
         $cmd = $this->getClient()->getCommand('GetObject', [
             'Bucket' => $this->bucket(),
             'Key' => $path,
         ]);
-        $request = $this->getClient()->createPresignedRequest($cmd, "+{$ttlSeconds} seconds");
+        $request = $this->getClient()->createPresignedRequest($cmd, $ttl);
 
         return (string)$request->getUri();
     }

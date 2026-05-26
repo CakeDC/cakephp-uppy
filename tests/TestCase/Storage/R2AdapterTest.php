@@ -15,13 +15,20 @@ class R2AdapterTest extends TestCase
     {
         parent::setUp();
         Configure::write('Uppy.R2', [
-            'accountId' => 'test-account-id',
-            'credentials' => ['key' => 'fake', 'secret' => 'fake'],
             'bucket' => 'test-bucket',
             'publicDomain' => 'files.example.com',
-            'lifeTimePutObject' => '+5 minutes',
-            'lifeTimeGetObject' => '+20 minutes',
-            'connection' => 'dummy',
+            'constants' => [
+                'lifeTimePutObject' => '+5 minutes',
+                'lifeTimeGetObject' => '+20 minutes',
+            ],
+            'config' => [
+                'version' => 'latest',
+                'region' => 'auto',
+                'endpoint' => 'https://test.r2.cloudflarestorage.com',
+                'credentials' => ['key' => 'fake', 'secret' => 'fake'],
+                'connection' => 'dummy',
+                'use_path_style_endpoint' => true,
+            ],
         ]);
     }
 

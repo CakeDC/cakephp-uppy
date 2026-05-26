@@ -46,7 +46,7 @@ class FilesTable extends Table
     private StorageAdapterInterface $storageAdapter;
 
     /**
-     * @return void
+     * @return \CakeDC\Uppy\Storage\StorageAdapterInterface
      */
     public function getStorageAdapter(): StorageAdapterInterface
     {

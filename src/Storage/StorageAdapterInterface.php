@@ -29,10 +29,10 @@ interface StorageAdapterInterface
      * Generate a presigned GET URL for reading a stored object.
      *
      * @param string $path Object storage path
-     * @param int $ttlSeconds URL lifetime in seconds (default 3600)
+     * @param int|null $ttlSeconds URL lifetime in seconds; null falls back to the driver's lifeTimeGetObject config
      * @return string Signed URL
      */
-    public function presignedUrl(string $path, int $ttlSeconds = 3600): string;
+    public function presignedUrl(string $path, ?int $ttlSeconds = null): string;
 
     /**
      * Delete an object from storage.
