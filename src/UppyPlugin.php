@@ -21,6 +21,10 @@ use Cake\Core\PluginApplicationInterface;
  */
 class UppyPlugin extends BasePlugin
 {
+    /**
+     * @param \Cake\Core\PluginApplicationInterface $app Application instance.
+     * @return void
+     */
     public function bootstrap(PluginApplicationInterface $app): void
     {
         parent::bootstrap($app);

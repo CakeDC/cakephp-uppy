@@ -3,10 +3,9 @@ declare(strict_types=1);
 
 namespace CakeDC\Uppy\Test\TestCase\Storage;
 
-use Aws\S3\S3Client;
-use CakeDC\Uppy\Storage\S3Adapter;
 use Cake\Core\Configure;
 use Cake\TestSuite\TestCase;
+use CakeDC\Uppy\Storage\S3Adapter;
 use Psr\Http\Message\RequestInterface;
 
 class S3AdapterTest extends TestCase

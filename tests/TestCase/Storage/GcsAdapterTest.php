@@ -3,9 +3,9 @@ declare(strict_types=1);
 
 namespace CakeDC\Uppy\Test\TestCase\Storage;
 
-use CakeDC\Uppy\Storage\GcsAdapter;
 use Cake\Core\Configure;
 use Cake\TestSuite\TestCase;
+use CakeDC\Uppy\Storage\GcsAdapter;
 use DateTime;
 use Google\Cloud\Core\Exception\GoogleException;
 use Google\Cloud\Core\Exception\NotFoundException;

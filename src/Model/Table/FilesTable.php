@@ -185,7 +185,7 @@ class FilesTable extends Table
             Configure::read('Uppy.Props.deleteFileS3', false),
         );
         if ($shouldDelete) {
-            $this->getStorageAdapter()->deleteObject($entity->path);
+            $this->getStorageAdapter()->deleteObject($entity->path ?? '');
         }
     }
 
@@ -237,7 +237,7 @@ class FilesTable extends Table
                     $row = [];
                     $row['filename'] = $file->filename;
                     $row['extension'] = $file->extension;
-                    $row['signedUrl'] = $this->getStorageAdapter()->presignedUrl($file->path);
+                    $row['signedUrl'] = $this->getStorageAdapter()->presignedUrl($file->path ?? '');
                     $row['filesize'] = Number::toReadableSize($file->filesize ?? 0);
                     $row['created'] = $file->created?->i18nFormat('yyyy-MM-dd');
                     $row['id'] = $file->id;

@@ -27,11 +27,18 @@ use Psr\Http\Message\RequestInterface;
  */
 trait S3Trait
 {
+    /**
+     * @return \Aws\S3\S3Client
+     */
     protected function getS3Client(): S3Client
     {
         return new S3Client(Configure::readOrFail('Uppy.S3.config'));
     }
 
+    /**
+     * @param string $operation Operation name (lifeTimePutObject or lifeTimeGetObject).
+     * @return string
+     */
     protected function getS3Lifetime(string $operation): string
     {
         $newKey = "Uppy.S3.constants.{$operation}";

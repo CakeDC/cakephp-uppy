@@ -21,6 +21,8 @@ use Cake\Utility\Inflector;
 use Cake\Utility\Text;
 use CakeDC\Uppy\Storage\AdapterFactory;
 use CakeDC\Uppy\Storage\StorageAdapterInterface;
+use UnexpectedValueException;
+use function Cake\Core\h;
 use function Cake\I18n\__;
 
 /**
@@ -67,7 +69,7 @@ class FilesController extends AppController
         /** @var \CakeDC\Uppy\Model\Entity\File $file */
         $file = $this->Files->get($id);
 
-        $presignedUrl = $this->storageAdapter->presignedUrl($file->path);
+        $presignedUrl = $this->storageAdapter->presignedUrl($file->path ?? '');
 
         return $this->redirect($presignedUrl);
     }

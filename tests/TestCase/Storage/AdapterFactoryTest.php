@@ -3,12 +3,12 @@ declare(strict_types=1);
 
 namespace CakeDC\Uppy\Test\TestCase\Storage;
 
+use Cake\Core\Configure;
+use Cake\TestSuite\TestCase;
 use CakeDC\Uppy\Storage\AdapterFactory;
 use CakeDC\Uppy\Storage\GcsAdapter;
 use CakeDC\Uppy\Storage\R2Adapter;
 use CakeDC\Uppy\Storage\S3Adapter;
-use Cake\Core\Configure;
-use Cake\TestSuite\TestCase;
 use InvalidArgumentException;
 
 class AdapterFactoryTest extends TestCase
