@@ -2,7 +2,6 @@
 declare(strict_types=1);
 
 /**
- **
  * Copyright 2023, Cake Development Corporation (https://www.cakedc.com)
  *
  * Licensed under The MIT License
@@ -71,7 +70,7 @@ return [
                 'version' => 'latest',
                 'region' => env('S3_REGION', null),
                 'credentials' => [
-                    'key'    => env('S3_KEY', null),
+                    'key' => env('S3_KEY', null),
                     'secret' => env('S3_SECRET', null),
                 ],
             ],
@@ -83,9 +82,9 @@ return [
          * Requires: composer require google/cloud-storage ^1.50
          */
         'GCS' => [
-            'projectId'   => env('GCS_PROJECT_ID', null),
+            'projectId' => env('GCS_PROJECT_ID', null),
             'keyFilePath' => env('GCS_KEY_FILE_PATH', null),
-            'bucket'      => env('GCS_BUCKET', null),
+            'bucket' => env('GCS_BUCKET', null),
             'lifeTimePutObject' => '+5 minutes',
             'lifeTimeGetObject' => '+20 minutes',
         ],
