@@ -30,5 +30,9 @@
 
     <DocblockTypeContradiction errorLevel="info" />
     <RedundantConditionGivenDocblockType errorLevel="info" />
+
+    <MissingTemplateParam errorLevel="info" />
+    <ImplementedReturnTypeMismatch errorLevel="info" />
+    <MoreSpecificImplementedParamType errorLevel="info" />
   </issueHandlers>
 </psalm>

@@ -34,7 +34,7 @@ use function Cake\I18n\__;
  * @method \CakeDC\Uppy\Model\Entity\File newEmptyEntity()
  * @method \CakeDC\Uppy\Model\Entity\File newEntity(array $data, array $options = [])
  * @method \CakeDC\Uppy\Model\Entity\File[] newEntities(array $data, array $options = [])
- * @method \CakeDC\Uppy\Model\Entity\File findOrCreate($search, ?callable $callback = null, $options = [])
+ * @method \CakeDC\Uppy\Model\Entity\File findOrCreate(array|callable $search, ?callable $callback = null, array $options = [])
  * @method \CakeDC\Uppy\Model\Entity\File patchEntity(\Cake\Datasource\EntityInterface $entity, array $data, array $options = [])
  * @method \CakeDC\Uppy\Model\Entity\File[] patchEntities(iterable $entities, array $data, array $options = [])
  * @method \CakeDC\Uppy\Model\Entity\File|false save(\Cake\Datasource\EntityInterface $entity, $options = [])
@@ -43,14 +43,14 @@ use function Cake\I18n\__;
  */
 class FilesTable extends Table
 {
-    private StorageAdapterInterface $storageAdapter;
+    private ?StorageAdapterInterface $storageAdapter = null;
 
     /**
      * @return \CakeDC\Uppy\Storage\StorageAdapterInterface
      */
     public function getStorageAdapter(): StorageAdapterInterface
     {
-        if (!isset($this->storageAdapter)) {
+        if ($this->storageAdapter === null) {
             $this->storageAdapter = AdapterFactory::create();
         }
 
@@ -206,7 +206,7 @@ class FilesTable extends Table
         ?string $from_date = null,
         ?string $to_date = null,
     ): SelectQuery {
-        if ($q['value'] ?? false) {
+        if (isset($q['value']) && (string)$q['value'] !== '') {
             $query->where(fn(QueryExpression $exp): QueryExpression => $exp
                 ->like($this->aliasField('filename'), "%{$q['value']}%"));
         }
@@ -214,7 +214,7 @@ class FilesTable extends Table
         $query->where(fn(QueryExpression $exp): QueryExpression => $exp
             ->eq($this->aliasField('user_id'), $patient_id));
 
-        if ($from_date && $to_date) {
+        if ($from_date !== null && $to_date !== null) {
             $query->where(fn(QueryExpression $exp): QueryExpression => $exp->between(
                 $this->aliasField('created'),
                 DateTime::parse($from_date)->startOfDay(),

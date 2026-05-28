@@ -2,8 +2,11 @@ includes:
     - phpstan-baseline.neon
 parameters:
 	level: 8
-	checkMissingIterableValueType: false
-	checkGenericClassInNonGenericObjectType: false
+	ignoreErrors:
+		-
+			identifier: missingType.iterableValue
+		-
+			identifier: missingType.generics
 	bootstrapFiles:
 		- config/aliases.php
 	paths:

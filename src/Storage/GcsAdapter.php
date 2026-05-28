@@ -81,7 +81,7 @@ class GcsAdapter implements StorageAdapterInterface
             : Configure::read('Uppy.GCS.lifeTimeGetObject', '+1 hour');
         $expires = new DateTime($ttlString);
 
-        return (string)$this->getClient()
+        return $this->getClient()
             ->bucket($this->bucket())
             ->object($path)
             ->signedUrl($expires, [

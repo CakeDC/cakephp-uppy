@@ -91,8 +91,8 @@ class FilesController extends AppController
         $files = [];
         $result = [];
         foreach ($items as $item) {
-            $tableAlias = $item['model'] ?? null;
-            if (!$tableAlias) {
+            $tableAlias = isset($item['model']) ? (string)$item['model'] : '';
+            if ($tableAlias === '') {
                 $result['error'] = true;
                 $result['message'] = __('model is required');
                 $this->set('result', $result);
@@ -110,8 +110,8 @@ class FilesController extends AppController
 
                 return;
             }
-            $foreignKey = $item['foreign_key'] ?? null;
-            if (!$foreignKey) {
+            $foreignKey = isset($item['foreign_key']) ? (string)$item['foreign_key'] : '';
+            if ($foreignKey === '') {
                 $result['error'] = true;
                 $result['message'] = __('foreign key is required');
                 $this->set('result', $result);
@@ -140,7 +140,7 @@ class FilesController extends AppController
             $files[] = $file;
         }
 
-        if ($this->Files->saveMany($files)) {
+        if ($this->Files->saveMany($files) !== false) {
             $result['error'] = false;
             $result['message'] = __('The association has been be saved correctly');
         } else {
@@ -205,20 +205,22 @@ class FilesController extends AppController
 
         $presignedRequest = $this->storageAdapter->createPresignedRequest($filename, $contentType);
 
+        $encoded = json_encode([
+            'error' => false,
+            'code' => 200,
+            'method' => $presignedRequest->getMethod(),
+            'url' => (string)$presignedRequest->getUri(),
+            'fields' => [],
+            // Also set the content-type header on the request, to make sure that it is the same as the one we used to generate the signature.
+            // Else, the browser picks a content-type as it sees fit.
+            'headers' => [
+                'content-type' => $contentType,
+            ],
+        ]);
+
         return $this->getResponse()
             ->withHeader('content-type', 'application/json')
-            ->withStringBody(json_encode([
-                'error' => false,
-                'code' => 200,
-                'method' => $presignedRequest->getMethod(),
-                'url' => (string)$presignedRequest->getUri(),
-                'fields' => [],
-                // Also set the content-type header on the request, to make sure that it is the same as the one we used to generate the signature.
-                // Else, the browser picks a content-type as it sees fit.
-                'headers' => [
-                    'content-type' => $contentType,
-                ],
-            ]) ?: '');
+            ->withStringBody($encoded !== false ? $encoded : '');
     }
 
     /**

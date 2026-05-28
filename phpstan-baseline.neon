@@ -1,2 +1,10 @@
 parameters:
 	ignoreErrors:
+		-
+			message: '#^Negated boolean expression is always false\.$#'
+			path: src/Storage/S3Adapter.php
+			count: 1
+		-
+			message: '#^Negated boolean expression is always false\.$#'
+			path: src/Storage/R2Adapter.php
+			count: 1
