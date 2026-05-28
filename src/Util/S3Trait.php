@@ -2,12 +2,12 @@
 declare(strict_types=1);
 
 /**
- * Copyright 2023, Cake Development Corporation (https://www.cakedc.com)
+ * Copyright 2024, Cake Development Corporation (https://www.cakedc.com)
  *
  * Licensed under The MIT License
  * Redistributions of files must retain the above copyright notice.
  *
- * @copyright Copyright 2023, Cake Development Corporation (https://www.cakedc.com)
+ * @copyright Copyright 2024, Cake Development Corporation (https://www.cakedc.com)
  * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
 namespace CakeDC\Uppy\Util;
@@ -21,13 +21,36 @@ use Laminas\Diactoros\Uri;
 use Psr\Http\Message\RequestInterface;
 
 /**
- * S3Trait
+ * Backward compatibility shim for applications using the old trait directly.
+ *
+ * @deprecated 2.next-cake5 Use storage adapters instead.
  */
 trait S3Trait
 {
     /**
-     * delete Object directly in S3
-     *
+     * @return \Aws\S3\S3Client
+     */
+    protected function getS3Client(): S3Client
+    {
+        return new S3Client(Configure::readOrFail('Uppy.S3.config'));
+    }
+
+    /**
+     * @param string $operation Operation name (lifeTimePutObject or lifeTimeGetObject).
+     * @return string
+     */
+    protected function getS3Lifetime(string $operation): string
+    {
+        $newKey = "Uppy.S3.constants.{$operation}";
+        $legacyKey = "Uppy.S3.contants.{$operation}";
+
+        return (string)(
+            Configure::read($newKey)
+            ?? Configure::readOrFail($legacyKey)
+        );
+    }
+
+    /**
      * @see /config/cors.xml
      * @param string|null $path string used as path in S3
      * @param string|null $name string filename
@@ -37,7 +60,7 @@ trait S3Trait
     {
         $path = $path ?? '';
         if (Configure::read('Uppy.S3.config.connection') !== 'dummy') {
-            $s3Client = new S3Client(Configure::readOrFail('Uppy.S3.config'));
+            $s3Client = $this->getS3Client();
             $exist = $s3Client->doesObjectExist(Configure::readOrFail('Uppy.S3.bucket'), $path);
             if ($exist) {
                 $s3Client->deleteObject([
@@ -54,8 +77,6 @@ trait S3Trait
     }
 
     /**
-     * Generate a signed GET uRI to acces files in S3, note CORS must be configured for the domain
-     *
      * @see /config/cors.xml
      * @param string|null $path string used as path in S3
      * @param string|null $name string filename
@@ -67,19 +88,17 @@ trait S3Trait
             return 'https://example.com';
         }
 
-        $s3Client = new S3Client(Configure::readOrFail('Uppy.S3.config'));
+        $s3Client = $this->getS3Client();
         $cmd = $s3Client->getCommand('GetObject', [
             'Bucket' => Configure::readOrFail('Uppy.S3.bucket'),
             'Key' => $path,
         ]);
-        $request = $s3Client->createPresignedRequest($cmd, Configure::read('Uppy.S3.contants.lifeTimeGetObject'));
+        $request = $s3Client->createPresignedRequest($cmd, $this->getS3Lifetime('lifeTimeGetObject'));
 
         return (string)$request->getUri();
     }
 
     /**
-     * Generate a presigned PUT request to send files to S3, note CORS must be configured for the domain
-     *
      * @see /config/cors.xml
      * @param string $path string used as path in S3
      * @param string $contentType string contenttype
@@ -90,22 +109,20 @@ trait S3Trait
         if (Configure::read('Uppy.S3.config.connection') === 'dummy') {
             return (new Request())
                 ->withUri(new Uri('https://example.com'));
-        } else {
-            $s3Client = new S3Client(Configure::readOrFail('Uppy.S3.config'));
-            $command = $s3Client->getCommand('putObject', [
-                'Bucket' => Configure::readOrFail('Uppy.S3.bucket'),
-                'Key' => $path,
-                'ContentType' => $contentType,
-                'Body' => '',
-            ]);
-
-            return $s3Client->createPresignedRequest($command, Configure::readOrFail('Uppy.S3.contants.lifeTimePutObject'));
         }
+
+        $s3Client = $this->getS3Client();
+        $command = $s3Client->getCommand('putObject', [
+            'Bucket' => Configure::readOrFail('Uppy.S3.bucket'),
+            'Key' => $path,
+            'ContentType' => $contentType,
+            'Body' => '',
+        ]);
+
+        return $s3Client->createPresignedRequest($command, $this->getS3Lifetime('lifeTimePutObject'));
     }
 
     /**
-     * Upload source dir to target path using transfer options
-     *
      * @see /config/cors.xml
      * @param string $source string used as filesystem source dir
      * @param string $target string used as path in S3
@@ -113,7 +130,7 @@ trait S3Trait
      */
     public function uploadDir(string $source, string $target): void
     {
-        $s3Client = new S3Client(Configure::readOrFail('Uppy.S3.config'));
+        $s3Client = $this->getS3Client();
         $dest = 's3://' . Configure::readOrFail('Uppy.S3.bucket') . DS . $target;
         $manager = new Transfer($s3Client, $source, $dest);
         $manager->transfer();
@@ -121,7 +138,6 @@ trait S3Trait
         $promise = $manager->promise();
 
         $promise->then(function (): void {
-            //Do nothing
         });
 
         $promise->otherwise(function ($reason): void {
@@ -130,8 +146,6 @@ trait S3Trait
     }
 
     /**
-     * Upload file using S3 putObject method
-     *
      * @param string $sourceFilePath string used as filesystem source file
      * @param string $destinationS3Path string used as path in S3
      * @return void
@@ -140,7 +154,7 @@ trait S3Trait
      */
     public function uploadFile(string $sourceFilePath, string $destinationS3Path): void
     {
-        $s3Client = new S3Client(Configure::readOrFail('Uppy.S3.config'));
+        $s3Client = $this->getS3Client();
         $s3Options = [
             'Bucket' => Configure::readOrFail('Uppy.S3.bucket'),
             'Key' => $destinationS3Path,
@@ -160,15 +174,13 @@ trait S3Trait
     }
 
     /**
-     * Delete file using S3 deleteObject method
-     *
      * @see /config/cors.xml
      * @param string $fileS3Path string used as path in S3
      * @return void
      */
     public function deleteFile(string $fileS3Path): void
     {
-        $s3Client = new S3Client(Configure::readOrFail('Uppy.S3.config'));
+        $s3Client = $this->getS3Client();
         $s3Options = [
             'Bucket' => Configure::read('Uppy.S3.bucket'),
             'Key' => $fileS3Path,
@@ -177,8 +189,6 @@ trait S3Trait
     }
 
     /**
-     * Delete dir on S3 usign matching rule
-     *
      * @param string $fileS3Path string used as path in S3
      * @return void
      * @throws \Exception
@@ -186,7 +196,7 @@ trait S3Trait
      */
     public function deleteDir(string $fileS3Path): void
     {
-        $s3Client = new S3Client(Configure::readOrFail('Uppy.S3.config'));
+        $s3Client = $this->getS3Client();
         if ($this->folderExists($fileS3Path)) {
             $s3Client->deleteMatchingObjects(Configure::readOrFail('Uppy.S3.bucket'), $fileS3Path);
         } else {
@@ -195,36 +205,32 @@ trait S3Trait
     }
 
     /**
-     * Check if file exists in S3 bucket
-     *
      * @param string $filename filename
      * @return bool
      */
     public function fileExists(string $filename): bool
     {
-        $s3Client = new S3Client(Configure::readOrFail('Uppy.S3.config'));
+        $s3Client = $this->getS3Client();
 
         return $s3Client->doesObjectExist(Configure::readOrFail('Uppy.S3.bucket'), $filename);
     }
 
     /**
-     * Check if folder exists in S3 bucket
-     *
      * @param string $filename filename
      * @return bool
      * @throws \Exception
      */
     public function folderExists(string $filename): bool
     {
-        $s3Client = new S3Client(Configure::readOrFail('Uppy.S3.config'));
+        $s3Client = $this->getS3Client();
         $list = $s3Client->listObjectsV2([
             'Bucket' => Configure::readOrFail('Uppy.S3.bucket'),
             'Prefix' => $filename,
         ]);
         if ($list['Contents'] > 0) {
             return true;
-        } else {
-            throw new Exception('Folder doesn\'t exist. Please try again.');
         }
+
+        throw new Exception('Folder doesn\'t exist. Please try again.');
     }
 }

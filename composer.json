@@ -20,7 +20,12 @@
         "cakephp/cakephp-codesniffer": "^5.0",
         "phpunit/phpunit": "^10.1.0",
         "cakephp/migrations": "^4.0.0",
-        "markstory/asset_compress": "^5.0.0"
+        "markstory/asset_compress": "^5.0.0",
+        "google/cloud-storage": "^1.50",
+        "phpstan/phpstan": "^1.10"
+    },
+    "suggest": {
+        "google/cloud-storage": "Required to use the GCS storage adapter (^1.50)"
     },
     "autoload": {
         "psr-4": {
@@ -40,15 +45,15 @@
         ],
         "cs-check": "phpcs --colors --parallel=16 -p src/ tests/",
         "cs-fix": "phpcbf --colors --parallel=16 -p src/ tests/",
-        "phpstan": "tools/phpstan analyse",
+        "phpstan": "vendor/bin/phpstan analyse",
         "psalm": "tools/psalm --show-info=false",
         "stan": [
             "@phpstan",
             "@psalm"
         ],
-        "phpstan-tests": "tools/phpstan analyze -c tests/phpstan.neon",
-        "phpstan-baseline": "tools/phpstan --generate-baseline",
-        "psalm-baseline": "tools/psalm  --set-baseline=psalm-baseline.xml",
+        "phpstan-tests": "vendor/bin/phpstan analyze -c tests/phpstan.neon",
+        "phpstan-baseline": "vendor/bin/phpstan --generate-baseline",
+        "psalm-baseline": "tools/psalm --set-baseline=psalm-baseline.xml",
         "stan-setup": "phive install",
         "test": "phpunit"
     },

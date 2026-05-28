@@ -1,6 +1,6 @@
 Home
 ====
-The **Uppy** Plugin integrate https://github.com/transloadit/uppy to upload files directly to a configured S3 usign a signature, and in the callback response save data related to files uploaded in database.
+The **Uppy** Plugin integrates https://github.com/transloadit/uppy to upload files directly from the browser to a configured cloud storage backend using a presigned URL, and on callback persists the related file metadata in the database. Supported backends: Amazon S3, Google Cloud Storage, and Cloudflare R2.
 
 The plugin is thought as a base to extend and use your app specific controllers and views from.
 

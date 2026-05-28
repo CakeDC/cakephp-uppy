@@ -24,7 +24,8 @@ use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
 use CakeDC\Uppy\Model\Entity\File;
-use CakeDC\Uppy\Util\S3Trait;
+use CakeDC\Uppy\Storage\AdapterFactory;
+use CakeDC\Uppy\Storage\StorageAdapterInterface;
 use function Cake\I18n\__;
 
 /**
@@ -33,7 +34,7 @@ use function Cake\I18n\__;
  * @method \CakeDC\Uppy\Model\Entity\File newEmptyEntity()
  * @method \CakeDC\Uppy\Model\Entity\File newEntity(array $data, array $options = [])
  * @method \CakeDC\Uppy\Model\Entity\File[] newEntities(array $data, array $options = [])
- * @method \CakeDC\Uppy\Model\Entity\File findOrCreate($search, ?callable $callback = null, $options = [])
+ * @method \CakeDC\Uppy\Model\Entity\File findOrCreate(array|callable $search, ?callable $callback = null, array $options = [])
  * @method \CakeDC\Uppy\Model\Entity\File patchEntity(\Cake\Datasource\EntityInterface $entity, array $data, array $options = [])
  * @method \CakeDC\Uppy\Model\Entity\File[] patchEntities(iterable $entities, array $data, array $options = [])
  * @method \CakeDC\Uppy\Model\Entity\File|false save(\Cake\Datasource\EntityInterface $entity, $options = [])
@@ -42,7 +43,19 @@ use function Cake\I18n\__;
  */
 class FilesTable extends Table
 {
-    use S3Trait;
+    private ?StorageAdapterInterface $storageAdapter = null;
+
+    /**
+     * @return \CakeDC\Uppy\Storage\StorageAdapterInterface
+     */
+    public function getStorageAdapter(): StorageAdapterInterface
+    {
+        if ($this->storageAdapter === null) {
+            $this->storageAdapter = AdapterFactory::create();
+        }
+
+        return $this->storageAdapter;
+    }
 
     /**
      * Initialize method
@@ -149,16 +162,16 @@ class FilesTable extends Table
         $rules->add(
             $rules->existsIn(
                 'user_id',
-                Configure::readOrFail('Uppy.Props.usersAliasModel')
+                Configure::readOrFail('Uppy.Props.usersAliasModel'),
             ),
-            ['errorField' => 'user_id']
+            ['errorField' => 'user_id'],
         );
 
         return $rules;
     }
 
     /**
-     * If it's configured prop deleteFileS3 delete file in S3 repository
+     * If it's configured prop deleteFileStorage delete file from storage
      *
      * @param \Cake\Event\EventInterface $event The beforeSave event that was fired
      * @param \CakeDC\Uppy\Model\Entity\File $entity The entity that is going to be saved
@@ -167,8 +180,12 @@ class FilesTable extends Table
      */
     public function afterDelete(EventInterface $event, File $entity, ArrayObject $options): void
     {
-        if (Configure::read('Uppy.Props.deleteFileS3', false)) {
-            $this->deleteObject($entity->path, $entity->filename);
+        $shouldDelete = Configure::read(
+            'Uppy.Props.deleteFileStorage',
+            Configure::read('Uppy.Props.deleteFileS3', false),
+        );
+        if ($shouldDelete) {
+            $this->getStorageAdapter()->deleteObject($entity->path ?? '');
         }
     }
 
@@ -187,22 +204,22 @@ class FilesTable extends Table
         int|string $patient_id,
         array $q = [],
         ?string $from_date = null,
-        ?string $to_date = null
+        ?string $to_date = null,
     ): SelectQuery {
-        if ($q['value'] ?? false) {
-            $query->where(fn (QueryExpression $exp): QueryExpression => $exp
+        if (isset($q['value']) && (string)$q['value'] !== '') {
+            $query->where(fn(QueryExpression $exp): QueryExpression => $exp
                 ->like($this->aliasField('filename'), "%{$q['value']}%"));
         }
 
-        $query->where(fn (QueryExpression $exp): QueryExpression => $exp
+        $query->where(fn(QueryExpression $exp): QueryExpression => $exp
             ->eq($this->aliasField('user_id'), $patient_id));
 
-        if ($from_date && $to_date) {
-            $query->where(fn (QueryExpression $exp): QueryExpression => $exp->between(
+        if ($from_date !== null && $to_date !== null) {
+            $query->where(fn(QueryExpression $exp): QueryExpression => $exp->between(
                 $this->aliasField('created'),
                 DateTime::parse($from_date)->startOfDay(),
                 DateTime::parse($to_date)->endOfDay(),
-                'datetime'
+                'datetime',
             ));
         }
 
@@ -215,12 +232,12 @@ class FilesTable extends Table
                 'path',
                 'created',
             ])
-            ->formatResults(fn (CollectionInterface $results): CollectionInterface => $results
+            ->formatResults(fn(CollectionInterface $results): CollectionInterface => $results
                 ->map(function (File $file): array {
                     $row = [];
                     $row['filename'] = $file->filename;
                     $row['extension'] = $file->extension;
-                    $row['signedUrl'] = $this->presignedUrl($file->path, $file->filename);
+                    $row['signedUrl'] = $this->getStorageAdapter()->presignedUrl($file->path ?? '');
                     $row['filesize'] = Number::toReadableSize($file->filesize ?? 0);
                     $row['created'] = $file->created?->i18nFormat('yyyy-MM-dd');
                     $row['id'] = $file->id;

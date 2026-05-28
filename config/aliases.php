@@ -13,5 +13,9 @@ declare(strict_types=1);
 use Cake\Controller\Controller;
 use Cake\View\View;
 
+if (!defined('CONFIG')) {
+    define('CONFIG', dirname(__DIR__) . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR);
+}
+
 class_alias(Controller::class, 'App\Controller\AppController');
 class_alias(View::class, '\App\View\AppView');
