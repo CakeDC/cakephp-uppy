@@ -45,7 +45,7 @@ return [
         * S3 configuration to manage files
         */
         'S3' => [
-            'contants' => [
+            'constants' => [
                 'lifeTimeGetObject' => '+20 minutes',
                 'lifeTimePutObject' => '+5 minutes',
             ],
