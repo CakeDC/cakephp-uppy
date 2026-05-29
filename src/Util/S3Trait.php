@@ -64,7 +64,7 @@ trait S3Trait
                 'Bucket' => Configure::read('Uppy.S3.bucket'),
                 'Key' => $path,
             ]);
-            $request = $s3Client->createPresignedRequest($cmd, Configure::read('Uppy.S3.contants.lifeTimeGetObject'));
+            $request = $s3Client->createPresignedRequest($cmd, Configure::read('Uppy.S3.constants.lifeTimeGetObject'));
 
             return (string)$request->getUri();
         }
@@ -91,7 +91,7 @@ trait S3Trait
                 'Body' => '',
             ]);
 
-            return $s3Client->createPresignedRequest($command, Configure::read('Uppy.S3.contants.lifeTimePutObject'));
+            return $s3Client->createPresignedRequest($command, Configure::read('Uppy.S3.constants.lifeTimePutObject'));
         }
     }
 
