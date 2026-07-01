@@ -12,8 +12,11 @@ declare(strict_types=1);
  */
 namespace CakeDC\Uppy\Test\TestCase\Controller;
 
-use Cake\TestSuite\IntegrationTestTrait;
+use Cake\Core\Configure;
+use Cake\Http\Response;
+use Cake\Http\ServerRequest;
 use Cake\TestSuite\TestCase;
+use CakeDC\Uppy\Controller\FilesController;
 
 /**
  * CakeDC\Uppy\Controller\FilesController Test Case
@@ -22,69 +25,229 @@ use Cake\TestSuite\TestCase;
  */
 class FilesControllerTest extends TestCase
 {
-    use IntegrationTestTrait;
-
     /**
-     * Fixtures
-     *
-     * @var array
-     */
-    protected $fixtures = [
-        'plugin.CakeDC\Uppy.Files',
-    ];
-
-    /**
-     * Test index method
-     *
      * @return void
-     * @uses \CakeDC\Uppy\Controller\FilesController::index()
      */
-    public function testIndex(): void
+    protected function setUp(): void
     {
-        $this->markTestIncomplete('Not implemented yet.');
+        parent::setUp();
+        $this->configureDummyUpload();
     }
 
     /**
-     * Test view method
-     *
      * @return void
-     * @uses \CakeDC\Uppy\Controller\FilesController::view()
      */
-    public function testView(): void
+    protected function configureDummyUpload(): void
     {
-        $this->markTestIncomplete('Not implemented yet.');
+        Configure::write('Uppy.S3.config.connection', 'dummy');
+        Configure::write('Uppy.AcceptedContentTypes', [
+            'application/pdf',
+            'image/png',
+        ]);
+        Configure::write('Uppy.MaxFileSize', 1073741824);
     }
 
     /**
-     * Test add method
-     *
-     * @return void
-     * @uses \CakeDC\Uppy\Controller\FilesController::add()
+     * @param string $action Controller action.
+     * @param array<string, mixed> $payload Request body.
+     * @return \Cake\Http\Response
      */
-    public function testAdd(): void
+    protected function invokeAction(string $action, array $payload): Response
     {
-        $this->markTestIncomplete('Not implemented yet.');
+        $request = (new ServerRequest([
+            'environment' => ['REQUEST_METHOD' => 'POST'],
+        ]))->withParsedBody($payload);
+
+        $response = new Response();
+        $controller = new FilesController($request, $response);
+        $controller->setRequest($request);
+        $controller->setResponse($response);
+        $controller->initialize();
+
+        return $controller->{$action}();
     }
 
     /**
-     * Test edit method
-     *
-     * @return void
-     * @uses \CakeDC\Uppy\Controller\FilesController::edit()
+     * @param \Cake\Http\Response $response
+     * @return array<string, mixed>
      */
-    public function testEdit(): void
+    protected function decodeResponse(Response $response): array
     {
-        $this->markTestIncomplete('Not implemented yet.');
+        $decoded = json_decode((string)$response->getBody(), true);
+        $this->assertIsArray($decoded);
+
+        return $decoded;
     }
 
     /**
-     * Test delete method
-     *
      * @return void
-     * @uses \CakeDC\Uppy\Controller\FilesController::delete()
      */
-    public function testDelete(): void
+    public function testSignRejectsInvalidContentType(): void
     {
-        $this->markTestIncomplete('Not implemented yet.');
+        $response = $this->invokeAction('sign', [
+            'filename' => 'test.exe',
+            'contentType' => 'application/x-msdownload',
+        ]);
+
+        $this->assertSame(400, $response->getStatusCode());
+        $body = $this->decodeResponse($response);
+        $this->assertTrue($body['error']);
+    }
+
+    /**
+     * @return void
+     */
+    public function testSignRejectsOversizeWhenMaxFileSizeSet(): void
+    {
+        $response = $this->invokeAction('sign', [
+            'filename' => 'large.pdf',
+            'contentType' => 'application/pdf',
+            'filesize' => 2000000000,
+        ]);
+
+        $this->assertSame(400, $response->getStatusCode());
+        $body = $this->decodeResponse($response);
+        $this->assertTrue($body['error']);
+    }
+
+    /**
+     * @return void
+     */
+    public function testSignSuccessWithDummyS3(): void
+    {
+        $response = $this->invokeAction('sign', [
+            'filename' => 'doc.pdf',
+            'contentType' => 'application/pdf',
+            'prefix' => 'uploads',
+        ]);
+
+        $this->assertSame(200, $response->getStatusCode());
+        $body = $this->decodeResponse($response);
+        $this->assertFalse($body['error']);
+        $this->assertSame(200, $body['code']);
+        $this->assertSame('PUT', $body['method']);
+        $this->assertStringContainsString('https://example.com/dummy/', $body['url']);
+        $this->assertStringContainsString('uploads/', $body['key']);
+    }
+
+    /**
+     * @return void
+     */
+    public function testCreateMultipartUploadSuccess(): void
+    {
+        $response = $this->invokeAction('createMultipartUpload', [
+            'filename' => 'large.pdf',
+            'contentType' => 'application/pdf',
+            'prefix' => 'alerrt/ResourceFiles',
+            'filesize' => 524288000,
+        ]);
+
+        $this->assertSame(200, $response->getStatusCode());
+        $body = $this->decodeResponse($response);
+        $this->assertFalse($body['error']);
+        $this->assertSame('dummy-upload-id', $body['uploadId']);
+        $this->assertStringContainsString('alerrt/ResourceFiles/', $body['key']);
+    }
+
+    /**
+     * @return void
+     */
+    public function testCreateMultipartUploadRejectsOversize(): void
+    {
+        $response = $this->invokeAction('createMultipartUpload', [
+            'filename' => 'huge.pdf',
+            'contentType' => 'application/pdf',
+            'filesize' => 2000000000,
+        ]);
+
+        $this->assertSame(400, $response->getStatusCode());
+        $body = $this->decodeResponse($response);
+        $this->assertTrue($body['error']);
+    }
+
+    /**
+     * @return void
+     */
+    public function testSignPartRequiresPartNumber(): void
+    {
+        $response = $this->invokeAction('signPart', [
+            'uploadId' => 'dummy-upload-id',
+            'key' => 'alerrt/ResourceFiles/test.pdf',
+            'partNumber' => 0,
+        ]);
+
+        $this->assertSame(400, $response->getStatusCode());
+        $body = $this->decodeResponse($response);
+        $this->assertTrue($body['error']);
+    }
+
+    /**
+     * @return void
+     */
+    public function testSignPartSuccess(): void
+    {
+        $response = $this->invokeAction('signPart', [
+            'uploadId' => 'dummy-upload-id',
+            'key' => 'alerrt/ResourceFiles/test.pdf',
+            'partNumber' => 1,
+        ]);
+
+        $this->assertSame(200, $response->getStatusCode());
+        $body = $this->decodeResponse($response);
+        $this->assertFalse($body['error']);
+        $this->assertStringContainsString('partNumber=1', $body['url']);
+    }
+
+    /**
+     * @return void
+     */
+    public function testCompleteMultipartUploadValidatesParts(): void
+    {
+        $response = $this->invokeAction('completeMultipartUpload', [
+            'uploadId' => 'dummy-upload-id',
+            'key' => 'alerrt/ResourceFiles/test.pdf',
+            'parts' => [
+                ['PartNumber' => 1],
+            ],
+        ]);
+
+        $this->assertSame(400, $response->getStatusCode());
+        $body = $this->decodeResponse($response);
+        $this->assertTrue($body['error']);
+    }
+
+    /**
+     * @return void
+     */
+    public function testCompleteMultipartUploadSuccess(): void
+    {
+        $response = $this->invokeAction('completeMultipartUpload', [
+            'uploadId' => 'dummy-upload-id',
+            'key' => 'alerrt/ResourceFiles/test.pdf',
+            'parts' => [
+                ['PartNumber' => 1, 'ETag' => '"abc"'],
+            ],
+        ]);
+
+        $this->assertSame(200, $response->getStatusCode());
+        $body = $this->decodeResponse($response);
+        $this->assertFalse($body['error']);
+        $this->assertStringContainsString('alerrt/ResourceFiles/test.pdf', $body['location']);
+        $this->assertSame('alerrt/ResourceFiles/test.pdf', $body['key']);
+    }
+
+    /**
+     * @return void
+     */
+    public function testAbortMultipartUploadSuccess(): void
+    {
+        $response = $this->invokeAction('abortMultipartUpload', [
+            'uploadId' => 'dummy-upload-id',
+            'key' => 'alerrt/ResourceFiles/test.pdf',
+        ]);
+
+        $this->assertSame(200, $response->getStatusCode());
+        $body = $this->decodeResponse($response);
+        $this->assertFalse($body['error']);
     }
 }

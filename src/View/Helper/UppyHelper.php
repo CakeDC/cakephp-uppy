@@ -38,7 +38,7 @@ class UppyHelper extends Helper
      * the Dashboard plugin. Without a target the Dashboard is not loaded,
      * avoiding the "Invalid target" error on file-input–based upload forms.
      *
-     * @param array $options
+     * @param array<string, mixed> $options Uppy and Dashboard options.
      * @return void
      */
     public function assets(array $options = []): void
@@ -59,7 +59,10 @@ class UppyHelper extends Helper
         $dashboardTarget = $options['dashboard']['target'] ?? $this->getConfig('dashboard.target') ?? null;
 
         if ($dashboardTarget) {
-            $uppyOptions = array_merge(['debug' => Configure::read('debug'), 'autoProceed' => true], $options['uppy'] ?? []);
+            $uppyOptions = array_merge(
+                ['debug' => Configure::read('debug'), 'autoProceed' => true],
+                $options['uppy'] ?? []
+            );
             $dashboardOptions = array_merge($this->getConfig('dashboard'), $options['dashboard'] ?? []);
             $uppyOptionsJson = json_encode($uppyOptions);
             $dashboardOptionsJson = json_encode($dashboardOptions);
@@ -77,8 +80,10 @@ class UppyHelper extends Helper
     }
 
     /**
-     * @param string $fieldName
-     * @param array $options
+     * Render a file input and Dashboard container for Uppy.
+     *
+     * @param string $fieldName Form field name.
+     * @param array<string, mixed> $options Widget options.
      * @return string
      */
     public function widget(string $fieldName, array $options = []): string

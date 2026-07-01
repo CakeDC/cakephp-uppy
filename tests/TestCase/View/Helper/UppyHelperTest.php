@@ -3,10 +3,10 @@ declare(strict_types=1);
 
 namespace CakeDC\Uppy\Test\TestCase\View\Helper;
 
+use Cake\Core\Configure;
 use Cake\TestSuite\TestCase;
 use Cake\View\View;
 use CakeDC\Uppy\View\Helper\UppyHelper;
-use Cake\Core\Configure;
 
 /**
  * CakeDC\Uppy\View\Helper\UppyHelper Test Case
@@ -59,7 +59,7 @@ class UppyHelperTest extends TestCase
 
         $result = $this->Uppy->getView()->fetch('script');
         $this->assertStringContainsString('uppy.min.mjs', $result);
-        $this->assertStringContainsString('window.uppy', $result);
+        $this->assertStringContainsString('window.Uppy', $result);
 
         Configure::write('debug', false);
         $this->Uppy->assets();

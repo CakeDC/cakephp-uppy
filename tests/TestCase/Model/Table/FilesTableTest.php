@@ -13,6 +13,7 @@ declare(strict_types=1);
 namespace CakeDC\Uppy\Test\TestCase\Model\Table;
 
 use Cake\TestSuite\TestCase;
+use Cake\Validation\Validator;
 use CakeDC\Uppy\Model\Table\FilesTable;
 
 /**
@@ -28,15 +29,6 @@ class FilesTableTest extends TestCase
     protected $Files;
 
     /**
-     * Fixtures
-     *
-     * @var array
-     */
-    protected $fixtures = [
-        'plugin.CakeDC\Uppy.Files',
-    ];
-
-    /**
      * setUp method
      *
      * @return void
@@ -44,8 +36,7 @@ class FilesTableTest extends TestCase
     public function setUp(): void
     {
         parent::setUp();
-        $config = $this->getTableLocator()->exists('Files') ? [] : ['className' => FilesTable::class];
-        $this->Files = $this->getTableLocator()->get('Files', $config);
+        $this->Files = new FilesTable();
     }
 
     /**
@@ -68,6 +59,23 @@ class FilesTableTest extends TestCase
      */
     public function testValidationDefault(): void
     {
-        $this->markTestIncomplete('Not implemented yet.');
+        $validator = new Validator();
+        $this->Files->validationDefault($validator);
+
+        $errors = $validator->validate([
+            'id' => '660e8400-e29b-41d4-a716-446655440001',
+            'foreign_key' => 1,
+            'filename' => 'valid.pdf',
+            'mime_type' => 'application/pdf',
+            'extension' => 'pdf',
+        ]);
+        $this->assertEmpty($errors);
+
+        $errors = $validator->validate([
+            'id' => '660e8400-e29b-41d4-a716-446655440002',
+            'foreign_key' => 1,
+            'filename' => 'bad/path.pdf',
+        ]);
+        $this->assertArrayHasKey('filename', $errors);
     }
 }

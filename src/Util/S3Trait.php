@@ -14,11 +14,12 @@ namespace CakeDC\Uppy\Util;
 
 use Aws\S3\S3Client;
 use Cake\Core\Configure;
+use Cake\Utility\Text;
+use GuzzleHttp\Psr7\Request;
 use Psr\Http\Message\RequestInterface;
 
 trait S3Trait
 {
-
     /**
      * @var \Aws\S3\S3Client
      */
@@ -37,13 +38,17 @@ trait S3Trait
         $endpoint = $config['endpoint'] ?? null;
         $bucket = Configure::read('Uppy.S3.bucket');
 
-        if ($endpoint && str_starts_with(basename($endpoint), $bucket)) {
+        if (
+            !array_key_exists('use_path_style_endpoint', $config)
+            && $endpoint
+            && $bucket
+            && str_starts_with(basename(rtrim((string)$endpoint, '/')), (string)$bucket)
+        ) {
             $config['use_path_style_endpoint'] = true;
         }
 
         return $this->_s3Client = new S3Client($config);
     }
-
 
     /**
      * delete Object directly in S3
@@ -99,6 +104,163 @@ trait S3Trait
     }
 
     /**
+     * Build the S3 object key for a new upload.
+     *
+     * @param string $originalFilename Original file name from the client.
+     * @param string|null $prefix Optional path prefix (e.g. alerrt/ResourceFiles).
+     * @return string
+     */
+    protected function buildStorageKey(string $originalFilename, ?string $prefix = null): string
+    {
+        $key = Text::uuid() . '-' . Text::slug($originalFilename);
+        if (!empty($prefix)) {
+            $key = trim($prefix, '/') . '/' . $key;
+        }
+
+        return $key;
+    }
+
+    /**
+     * Validate content type against configured accepted types.
+     *
+     * @param string $contentType MIME type.
+     * @return void
+     */
+    protected function assertAcceptedContentType(string $contentType): void
+    {
+        $accepted = Configure::read('Uppy.AcceptedContentTypes') ?? [];
+        if (!in_array($contentType, $accepted, true)) {
+            throw new \InvalidArgumentException(__('contentType {0} is not valid', $contentType));
+        }
+    }
+
+    /**
+     * Validate declared file size against Uppy.MaxFileSize when configured.
+     *
+     * @param int|null $filesize File size in bytes.
+     * @return void
+     */
+    protected function assertMaxFileSize(?int $filesize): void
+    {
+        $max = Configure::read('Uppy.MaxFileSize');
+        if ($max === null || $filesize === null) {
+            return;
+        }
+        if ($filesize > (int)$max) {
+            throw new \InvalidArgumentException(__('File exceeds maximum size of {0} bytes', $max));
+        }
+    }
+
+    /**
+     * Start a multipart upload in S3.
+     *
+     * @param string $key Object key.
+     * @param string $contentType MIME type.
+     * @return array{uploadId: string, key: string}
+     */
+    protected function createMultipartUpload(string $key, string $contentType): array
+    {
+        if (Configure::read('Uppy.S3.config.connection') === 'dummy') {
+            return [
+                'uploadId' => 'dummy-upload-id',
+                'key' => $key,
+            ];
+        }
+
+        $s3Client = $this->_getS3Client();
+        $result = $s3Client->createMultipartUpload([
+            'Bucket' => Configure::read('Uppy.S3.bucket'),
+            'Key' => $key,
+            'ContentType' => $contentType,
+        ]);
+
+        return [
+            'uploadId' => $result['UploadId'],
+            'key' => $key,
+        ];
+    }
+
+    /**
+     * Presign a single multipart upload part.
+     *
+     * @param string $key Object key.
+     * @param string $uploadId Multipart upload id.
+     * @param int $partNumber Part number (1-based).
+     * @return \Psr\Http\Message\RequestInterface
+     */
+    protected function createPresignedUploadPart(string $key, string $uploadId, int $partNumber): RequestInterface
+    {
+        if (Configure::read('Uppy.S3.config.connection') === 'dummy') {
+            return new Request(
+                'PUT',
+                'https://example.com/dummy/' . rawurlencode($key) . '?partNumber=' . $partNumber
+            );
+        }
+
+        $s3Client = $this->_getS3Client();
+        $command = $s3Client->getCommand('UploadPart', [
+            'Bucket' => Configure::read('Uppy.S3.bucket'),
+            'Key' => $key,
+            'UploadId' => $uploadId,
+            'PartNumber' => $partNumber,
+        ]);
+        $lifetime = Configure::read('Uppy.S3.constants.lifeTimeUploadPart')
+            ?? Configure::read('Uppy.S3.constants.lifeTimePutObject');
+
+        return $s3Client->createPresignedRequest($command, $lifetime);
+    }
+
+    /**
+     * Complete a multipart upload in S3.
+     *
+     * @param string $key Object key.
+     * @param string $uploadId Multipart upload id.
+     * @param array<int, array<string, mixed>> $parts S3 parts with PartNumber and ETag.
+     * @return array{location: string|null}
+     */
+    protected function completeMultipartUpload(string $key, string $uploadId, array $parts): array
+    {
+        if (Configure::read('Uppy.S3.config.connection') === 'dummy') {
+            return [
+                'location' => 'https://example.com/' . $key,
+            ];
+        }
+
+        $s3Client = $this->_getS3Client();
+        $result = $s3Client->completeMultipartUpload([
+            'Bucket' => Configure::read('Uppy.S3.bucket'),
+            'Key' => $key,
+            'UploadId' => $uploadId,
+            'MultipartUpload' => ['Parts' => $parts],
+        ]);
+
+        return [
+            'location' => $result['Location'] ?? null,
+        ];
+    }
+
+    /**
+     * Abort a multipart upload in S3.
+     *
+     * @param string $key Object key.
+     * @param string $uploadId Multipart upload id.
+     * @return void
+     */
+    protected function abortMultipartUpload(string $key, string $uploadId): void
+    {
+        if (Configure::read('Uppy.S3.config.connection') === 'dummy') {
+            return;
+        }
+
+        $s3Client = $this->_getS3Client();
+        $s3Client->abortMultipartUpload([
+            'Bucket' => Configure::read('Uppy.S3.bucket'),
+            'Key' => $key,
+            'UploadId' => $uploadId,
+        ]);
+    }
+
+    /**
      * Generate a presigned PUT request to send files to S3, note CORS must be configured for the domain
      *
      * @see /config/cors.xml
@@ -109,18 +271,18 @@ trait S3Trait
     protected function createPresignedRequest(string $path, string $contentType): RequestInterface
     {
         if (Configure::read('Uppy.S3.config.connection') === 'dummy') {
-            return 'https://example.com';
-        } else {
-            $s3Client = $this->_getS3Client();
-            $command = $s3Client->getCommand('putObject', [
+            return new Request('PUT', 'https://example.com/dummy/' . rawurlencode($path));
+        }
+
+        $s3Client = $this->_getS3Client();
+        $command = $s3Client->getCommand('putObject', [
                 'Bucket' => Configure::read('Uppy.S3.bucket'),
                 'Key' => $path,
                 'ContentType' => $contentType,
                 'Body' => '',
             ]);
 
-            return $s3Client->createPresignedRequest($command, Configure::read('Uppy.S3.constants.lifeTimePutObject'));
-        }
+        return $s3Client->createPresignedRequest($command, Configure::read('Uppy.S3.constants.lifeTimePutObject'));
     }
 
     /**
