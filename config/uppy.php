@@ -12,6 +12,8 @@ declare(strict_types=1);
  */
 return [
     'Uppy' => [
+        'MaxFileSize' => null,
+        'MultipartThreshold' => 104857600,
         'Props' => [
             'usersAliasModel' => 'Users',
             'usersModel' => 'Users',
@@ -46,12 +48,14 @@ return [
             'constants' => [
                 'lifeTimeGetObject' => '+20 minutes',
                 'lifeTimePutObject' => '+5 minutes',
+                'lifeTimeUploadPart' => '+20 minutes',
             ],
             'config' => [
                 'version' => 'latest',
                 'connection' => 'real', //dummy
                 'region' => filter_var(env('S3_REGION', null)),
                 'endpoint' => filter_var(env('S3_END_POINT', null)),
+                'use_path_style_endpoint' => filter_var(env('S3_USE_PATH_STYLE_ENDPOINT', false), FILTER_VALIDATE_BOOLEAN),
                 'credentials' => [
                     'key' => filter_var(env('S3_KEY', null)),
                     'secret' => filter_var(env('S3_SECRET', null)),

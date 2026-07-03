@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 /**
- * Copyright 2023, Cake Development Corporation (https://www.cakedc.com)
+ * Copyright 2023 - 2026, Cake Development Corporation (https://www.cakedc.com)
  *
  * Licensed under The MIT License
  * Redistributions of files must retain the above copyright notice.
@@ -12,22 +12,36 @@ declare(strict_types=1);
  */
 namespace CakeDC\Uppy\Controller;
 
+use Aws\Exception\AwsException;
 use Cake\Core\Configure;
-use Cake\Datasource\Exception\PageOutOfBoundsException;
 use Cake\Datasource\Exception\RecordNotFoundException;
+use Cake\Http\Response;
 use Cake\ORM\Exception\MissingTableClassException;
 use Cake\Utility\Inflector;
-use Cake\Utility\Text;
 use CakeDC\Uppy\Util\S3Trait;
 
 /**
  * Files Controller
  *
- * @method \CakeDC\Uppy\Model\Entity\File[]|\Cake\Datasource\ResultSetInterface paginate($object = null, array $settings = [])
+ * @property \CakeDC\Uppy\Model\Table\FilesTable $Files
+ * @method \Cake\Datasource\ResultSetInterface<\CakeDC\Uppy\Model\Entity\File> paginate(?object $object = null, array<string, mixed> $settings = [])
  */
 class FilesController extends AppController
 {
-    use S3Trait;
+    use S3Trait {
+        createMultipartUpload as protected s3CreateMultipartUpload;
+        completeMultipartUpload as protected s3CompleteMultipartUpload;
+        abortMultipartUpload as protected s3AbortMultipartUpload;
+    }
+
+    private const UPLOAD_SIGNING_ACTIONS = [
+        'sign',
+        'createMultipartUpload',
+        'signPart',
+        'completeMultipartUpload',
+        'abortMultipartUpload',
+        'save',
+    ];
 
     /**
      * Initialize method
@@ -40,9 +54,9 @@ class FilesController extends AppController
     {
         parent::initialize();
         if ($this->components()->has('Security')) {
-            $this->Security->setConfig('unlockedActions', ['sign', 'save']);
+            $this->Security->setConfig('unlockedActions', self::UPLOAD_SIGNING_ACTIONS);
         } elseif ($this->components()->has('FormProtection')) {
-            $this->FormProtection->setConfig('unlockedActions', ['sign', 'save']);
+            $this->FormProtection->setConfig('unlockedActions', self::UPLOAD_SIGNING_ACTIONS);
         }
     }
 
@@ -194,42 +208,220 @@ class FilesController extends AppController
      *
      * Generate preasigned url and method and return the same body with firmed url to upload from front to S3 directly
      *
-     * @return \Cake\Http\Response|null|void Redirects on successful add, renders view otherwise.
+     * @return \Cake\Http\Response
      */
-    public function sign()
+    public function sign(): Response
     {
         $this->request->allowMethod('post');
 
-        if ($this->request->getData('filename') === null) {
-            throw new PageOutOfBoundsException(__('filename is required'));
-        }
-        $prefix = $this->request->getData('prefix');
-        $filename = Text::uuid() . '-' . Text::slug($this->request->getData('filename'));
-        if (!empty($prefix)) {
-            $filename = trim($prefix, '/') . '/' . $filename;
-        }
-
-        $contentType = $this->request->getData('contentType');
-        if (!in_array($contentType, Configure::read('Uppy.AcceptedContentTypes'))) {
-            throw new PageOutOfBoundsException(__('contenType {0} is not valid', $contentType));
+        $filename = $this->request->getData('filename');
+        if ($filename === null || $filename === '') {
+            return $this->jsonResponse([
+                'error' => true,
+                'code' => 400,
+                'message' => __('filename is required'),
+            ], 400);
         }
 
-        $presignedRequest = $this->createPresignedRequest($filename, $contentType);
+        $contentType = (string)$this->request->getData('contentType');
+        try {
+            $this->assertAcceptedContentType($contentType);
+        } catch (\InvalidArgumentException $exception) {
+            return $this->jsonResponse([
+                'error' => true,
+                'code' => 400,
+                'message' => $exception->getMessage(),
+            ], 400);
+        }
 
-        return $this->response
-        ->withHeader('content-type', 'application/json')
-        ->withStringBody(json_encode([
+        $filesize = $this->request->getData('filesize');
+        if ($filesize !== null && $filesize !== '') {
+            try {
+                $this->assertMaxFileSize((int)$filesize);
+            } catch (\InvalidArgumentException $exception) {
+                return $this->jsonResponse([
+                    'error' => true,
+                    'code' => 400,
+                    'message' => $exception->getMessage(),
+                ], 400);
+            }
+        }
+
+        $storageKey = $this->buildStorageKey(
+            (string)$this->request->getData('filename'),
+            $this->request->getData('prefix') ? (string)$this->request->getData('prefix') : null
+        );
+
+        $presignedRequest = $this->createPresignedRequest($storageKey, $contentType);
+
+        return $this->jsonResponse([
             'error' => false,
             'code' => 200,
             'method' => $presignedRequest->getMethod(),
             'url' => (string)$presignedRequest->getUri(),
+            'key' => $storageKey,
             'fields' => [],
             // Also set the content-type header on the request, to make sure that it is the same as the one we used to generate the signature.
             // Else, the browser picks a content-type as it sees fit.
             'headers' => [
                 'content-type' => $contentType,
             ],
-        ]));
+        ]);
+    }
+
+    /**
+     * Start a multipart upload and return upload id and object key.
+     *
+     * @return \Cake\Http\Response
+     */
+    public function createMultipartUpload(): Response
+    {
+        $this->request->allowMethod('post');
+
+        try {
+            $upload = $this->parseUploadRequest();
+            $result = $this->s3CreateMultipartUpload($upload['key'], $upload['contentType']);
+        } catch (\InvalidArgumentException $exception) {
+            return $this->jsonResponse([
+                'error' => true,
+                'code' => 400,
+                'message' => $exception->getMessage(),
+            ], 400);
+        } catch (AwsException $exception) {
+            return $this->s3ErrorResponse($exception);
+        }
+
+        return $this->jsonResponse([
+            'error' => false,
+            'code' => 200,
+            'uploadId' => $result['uploadId'],
+            'key' => $result['key'],
+        ]);
+    }
+
+    /**
+     * Presign a single multipart upload part.
+     *
+     * @return \Cake\Http\Response
+     */
+    public function signPart(): Response
+    {
+        $this->request->allowMethod('post');
+
+        $uploadId = $this->request->getData('uploadId');
+        $key = $this->request->getData('key');
+        $partNumber = $this->request->getData('partNumber');
+
+        if (empty($uploadId) || empty($key)) {
+            return $this->jsonResponse([
+                'error' => true,
+                'code' => 400,
+                'message' => __('uploadId and key are required'),
+            ], 400);
+        }
+
+        $partNumber = (int)$partNumber;
+        if ($partNumber < 1) {
+            return $this->jsonResponse([
+                'error' => true,
+                'code' => 400,
+                'message' => __('partNumber must be greater than zero'),
+            ], 400);
+        }
+
+        $presignedRequest = $this->createPresignedUploadPart((string)$key, (string)$uploadId, $partNumber);
+
+        return $this->jsonResponse([
+            'error' => false,
+            'code' => 200,
+            'url' => (string)$presignedRequest->getUri(),
+            'headers' => [],
+        ]);
+    }
+
+    /**
+     * Complete a multipart upload.
+     *
+     * @return \Cake\Http\Response
+     */
+    public function completeMultipartUpload(): Response
+    {
+        $this->request->allowMethod('post');
+
+        $uploadId = $this->request->getData('uploadId');
+        $key = $this->request->getData('key');
+        $parts = $this->request->getData('parts');
+
+        if (empty($uploadId) || empty($key)) {
+            return $this->jsonResponse([
+                'error' => true,
+                'code' => 400,
+                'message' => __('uploadId and key are required'),
+            ], 400);
+        }
+
+        if (!is_array($parts) || $parts === []) {
+            return $this->jsonResponse([
+                'error' => true,
+                'code' => 400,
+                'message' => __('parts are required'),
+            ], 400);
+        }
+
+        foreach ($parts as $part) {
+            if (!is_array($part) || !isset($part['PartNumber'], $part['ETag'])) {
+                return $this->jsonResponse([
+                    'error' => true,
+                    'code' => 400,
+                    'message' => __('each part must include PartNumber and ETag'),
+                ], 400);
+            }
+        }
+
+        try {
+            $result = $this->s3CompleteMultipartUpload((string)$key, (string)$uploadId, $parts);
+        } catch (AwsException $exception) {
+            return $this->s3ErrorResponse($exception);
+        }
+
+        return $this->jsonResponse([
+            'error' => false,
+            'code' => 200,
+            'location' => $result['location'],
+            'key' => $key,
+        ]);
+    }
+
+    /**
+     * Abort a multipart upload.
+     *
+     * @return \Cake\Http\Response
+     */
+    public function abortMultipartUpload(): Response
+    {
+        $this->request->allowMethod('post');
+
+        $uploadId = $this->request->getData('uploadId');
+        $key = $this->request->getData('key');
+
+        if (empty($uploadId) || empty($key)) {
+            return $this->jsonResponse([
+                'error' => true,
+                'code' => 400,
+                'message' => __('uploadId and key are required'),
+            ], 400);
+        }
+
+        try {
+            $this->s3AbortMultipartUpload((string)$key, (string)$uploadId);
+        } catch (AwsException $exception) {
+            return $this->s3ErrorResponse($exception);
+        }
+
+        return $this->jsonResponse([
+            'error' => false,
+            'code' => 200,
+        ]);
     }
 
     /**
@@ -244,5 +436,65 @@ class FilesController extends AppController
         $file = $this->Files->newEmptyEntity();
 
         $this->set(compact('file'));
+    }
+
+    /**
+     * Parse and validate a new upload request payload.
+     *
+     * @return array{key: string, contentType: string}
+     */
+    private function parseUploadRequest(): array
+    {
+        $filename = $this->request->getData('filename');
+        if ($filename === null || $filename === '') {
+            throw new \InvalidArgumentException(__('filename is required'));
+        }
+
+        $contentType = (string)$this->request->getData('contentType');
+        $this->assertAcceptedContentType($contentType);
+
+        $filesize = $this->request->getData('filesize');
+        if ($filesize !== null && $filesize !== '') {
+            $this->assertMaxFileSize((int)$filesize);
+        }
+
+        $prefix = $this->request->getData('prefix');
+
+        return [
+            'key' => $this->buildStorageKey((string)$filename, $prefix ? (string)$prefix : null),
+            'contentType' => $contentType,
+        ];
+    }
+
+    /**
+     * Return a JSON response with a consistent envelope.
+     *
+     * @param array<string, mixed> $payload Response body.
+     * @param int $status HTTP status code.
+     * @return \Cake\Http\Response
+     */
+    private function jsonResponse(array $payload, int $status = 200): Response
+    {
+        return $this->response
+            ->withStatus($status)
+            ->withHeader('content-type', 'application/json')
+            ->withStringBody((string)json_encode($payload));
+    }
+
+    /**
+     * Return a JSON error response for upstream S3 failures.
+     *
+     * @param \Aws\Exception\AwsException $exception AWS SDK exception.
+     * @return \Cake\Http\Response
+     */
+    private function s3ErrorResponse(AwsException $exception): Response
+    {
+        $message = $exception->getAwsErrorMessage() ?: $exception->getMessage();
+
+        return $this->jsonResponse([
+            'error' => true,
+            'code' => 502,
+            'message' => $message,
+        ], 502);
     }
 }

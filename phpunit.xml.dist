@@ -17,11 +17,6 @@
         </testsuite>
     </testsuites>
 
-    <!-- Setup fixture extension -->
-    <extensions>
-        <extension class="Cake\TestSuite\Fixtures\PHPUnitExtension" />
-    </extensions>
-
     <filter>
         <whitelist>
             <directory suffix=".php">src/</directory>
