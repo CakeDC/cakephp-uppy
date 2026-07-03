@@ -12,9 +12,9 @@ declare(strict_types=1);
  */
 namespace CakeDC\Uppy\Controller;
 
+use Aws\Exception\AwsException;
 use Cake\Core\Configure;
 use Cake\Datasource\Exception\RecordNotFoundException;
-use Cake\Datasource\Paging\Exception\PageOutOfBoundsException;
 use Cake\Http\Response;
 use Cake\ORM\Exception\MissingTableClassException;
 use Cake\Utility\Inflector;
@@ -23,7 +23,8 @@ use CakeDC\Uppy\Util\S3Trait;
 /**
  * Files Controller
  *
- * @method \CakeDC\Uppy\Model\Entity\File[]|\Cake\Datasource\ResultSetInterface paginate($object = null, array $settings = [])
+ * @property \CakeDC\Uppy\Model\Table\FilesTable $Files
+ * @method \Cake\Datasource\ResultSetInterface<\CakeDC\Uppy\Model\Entity\File> paginate(?object $object = null, array<string, mixed> $settings = [])
  */
 class FilesController extends AppController
 {
@@ -213,8 +214,13 @@ class FilesController extends AppController
     {
         $this->request->allowMethod('post');
 
-        if ($this->request->getData('filename') === null) {
-            throw new PageOutOfBoundsException(__('filename is required'));
+        $filename = $this->request->getData('filename');
+        if ($filename === null || $filename === '') {
+            return $this->jsonResponse([
+                'error' => true,
+                'code' => 400,
+                'message' => __('filename is required'),
+            ], 400);
         }
 
         $contentType = (string)$this->request->getData('contentType');
@@ -281,6 +287,8 @@ class FilesController extends AppController
                 'code' => 400,
                 'message' => $exception->getMessage(),
             ], 400);
+        } catch (AwsException $exception) {
+            return $this->s3ErrorResponse($exception);
         }
 
         return $this->jsonResponse([
@@ -370,7 +378,11 @@ class FilesController extends AppController
             }
         }
 
-        $result = $this->s3CompleteMultipartUpload((string)$key, (string)$uploadId, $parts);
+        try {
+            $result = $this->s3CompleteMultipartUpload((string)$key, (string)$uploadId, $parts);
+        } catch (AwsException $exception) {
+            return $this->s3ErrorResponse($exception);
+        }
 
         return $this->jsonResponse([
             'error' => false,
@@ -400,7 +412,11 @@ class FilesController extends AppController
             ], 400);
         }
 
-        $this->s3AbortMultipartUpload((string)$key, (string)$uploadId);
+        try {
+            $this->s3AbortMultipartUpload((string)$key, (string)$uploadId);
+        } catch (AwsException $exception) {
+            return $this->s3ErrorResponse($exception);
+        }
 
         return $this->jsonResponse([
             'error' => false,
@@ -463,5 +479,22 @@ class FilesController extends AppController
             ->withStatus($status)
             ->withHeader('content-type', 'application/json')
             ->withStringBody((string)json_encode($payload));
+    }
+
+    /**
+     * Return a JSON error response for upstream S3 failures.
+     *
+     * @param \Aws\Exception\AwsException $exception AWS SDK exception.
+     * @return \Cake\Http\Response
+     */
+    private function s3ErrorResponse(AwsException $exception): Response
+    {
+        $message = $exception->getAwsErrorMessage() ?: $exception->getMessage();
+
+        return $this->jsonResponse([
+            'error' => true,
+            'code' => 502,
+            'message' => $message,
+        ], 502);
     }
 }

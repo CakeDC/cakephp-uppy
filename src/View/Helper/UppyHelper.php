@@ -8,9 +8,15 @@ use Cake\View\Helper;
 
 /**
  * Uppy helper
+ *
+ * @property \Cake\View\Helper\HtmlHelper $Html
+ * @property \Cake\View\Helper\FormHelper $Form
  */
 class UppyHelper extends Helper
 {
+    /**
+     * @var array<int, string>
+     */
     public $helpers = ['Html', 'Form'];
     /**
      * Default configuration.
@@ -56,6 +62,9 @@ class UppyHelper extends Helper
 
         $this->Html->css($cssUrl, ['block' => 'css']);
 
+        $uploadConfigJson = json_encode($this->getUploadConfig());
+        $configScript = "window.UppyUploadConfig = {$uploadConfigJson};";
+
         $dashboardTarget = $options['dashboard']['target'] ?? $this->getConfig('dashboard.target') ?? null;
 
         if ($dashboardTarget) {
@@ -67,13 +76,14 @@ class UppyHelper extends Helper
             $uppyOptionsJson = json_encode($uppyOptions);
             $dashboardOptionsJson = json_encode($dashboardOptions);
             $script = <<<JS
+                {$configScript}
                 import * as Uppy from '{$jsUrl}';
                 window.Uppy = Uppy;
                 window.uppy = new Uppy.Uppy({$uppyOptionsJson});
                 window.uppy.use(Uppy.Dashboard, {$dashboardOptionsJson});
             JS;
         } else {
-            $script = "import * as Uppy from '{$jsUrl}'; window.Uppy = Uppy;";
+            $script = "{$configScript}\nimport * as Uppy from '{$jsUrl}'; window.Uppy = Uppy;";
         }
 
         $this->Html->scriptBlock($script, ['block' => 'script', 'type' => 'module']);
@@ -98,5 +108,21 @@ class UppyHelper extends Helper
         $dashboardContainer = $this->Html->div('Uppy', '');
 
         return $fileInput . $dashboardContainer;
+    }
+
+    /**
+     * Upload limits and multipart settings for the Uppy AwsS3 client.
+     *
+     * @return array{maxFileSize: int|null, multipartThreshold: int|null}
+     */
+    public function getUploadConfig(): array
+    {
+        $maxFileSize = Configure::read('Uppy.MaxFileSize');
+        $multipartThreshold = Configure::read('Uppy.MultipartThreshold');
+
+        return [
+            'maxFileSize' => $maxFileSize !== null ? (int)$maxFileSize : null,
+            'multipartThreshold' => $multipartThreshold !== null ? (int)$multipartThreshold : null,
+        ];
     }
 }

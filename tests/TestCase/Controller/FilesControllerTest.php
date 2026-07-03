@@ -82,6 +82,21 @@ class FilesControllerTest extends TestCase
     /**
      * @return void
      */
+    public function testSignRejectsMissingFilename(): void
+    {
+        $response = $this->invokeAction('sign', [
+            'contentType' => 'application/pdf',
+        ]);
+
+        $this->assertSame(400, $response->getStatusCode());
+        $body = $this->decodeResponse($response);
+        $this->assertTrue($body['error']);
+        $this->assertSame(400, $body['code']);
+    }
+
+    /**
+     * @return void
+     */
     public function testSignRejectsInvalidContentType(): void
     {
         $response = $this->invokeAction('sign', [

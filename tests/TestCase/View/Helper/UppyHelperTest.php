@@ -45,6 +45,20 @@ class UppyHelperTest extends TestCase
     }
 
     /**
+     * @return void
+     */
+    public function testGetUploadConfig(): void
+    {
+        Configure::write('Uppy.MaxFileSize', 1073741824);
+        Configure::write('Uppy.MultipartThreshold', 104857600);
+
+        $config = $this->Uppy->getUploadConfig();
+
+        $this->assertSame(1073741824, $config['maxFileSize']);
+        $this->assertSame(104857600, $config['multipartThreshold']);
+    }
+
+    /**
      * Test assets method
      *
      * @return void
@@ -60,6 +74,7 @@ class UppyHelperTest extends TestCase
         $result = $this->Uppy->getView()->fetch('script');
         $this->assertStringContainsString('uppy.min.mjs', $result);
         $this->assertStringContainsString('window.Uppy', $result);
+        $this->assertStringContainsString('window.UppyUploadConfig', $result);
 
         Configure::write('debug', false);
         $this->Uppy->assets();

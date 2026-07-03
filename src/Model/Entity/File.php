@@ -32,7 +32,7 @@ use Cake\ORM\Entity;
  * @property string|null $metadata
  * @property int $foreign_key
  *
- * @property \CakeDC\Uppy\Model\Entity\User $user
+ * @property \Cake\Datasource\EntityInterface|null $user
  */
 class File extends Entity
 {
@@ -43,7 +43,7 @@ class File extends Entity
      * be mass assigned. For security purposes, it is advised to set '*' to false
      * (or remove it), and explicitly make individual fields accessible as needed.
      *
-     * @var array
+     * @var array<string, bool>
      */
     protected $_accessible = [
         'user_id' => false,

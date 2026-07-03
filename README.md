@@ -28,6 +28,8 @@ You must configure the connection parameters with S3 in `config/uppy.php`
 
 return [
     'Uppy' => [
+        'MaxFileSize' => null,
+        'MultipartThreshold' => 104857600,
         'Props' => [
             'usersModel' => 'Users',
             'deleteFileS3' => true,
@@ -48,11 +50,13 @@ return [
             'constants' => [
                 'lifeTimeGetObject' => '+20 minutes',
                 'lifeTimePutObject' => '+5 minutes',
+                'lifeTimeUploadPart' => '+20 minutes',
             ],
             'config' => [
                 'version' => 'latest',
                 'region' => filter_var(env('S3_REGION', null)),
                 'endpoint' => filter_var(env('S3_END_POINT', null)),
+                'use_path_style_endpoint' => filter_var(env('S3_USE_PATH_STYLE_ENDPOINT', false), FILTER_VALIDATE_BOOLEAN),
                 'credentials' => [
                     'key' => filter_var(env('S3_KEY', null)),
                     'secret' => filter_var(env('S3_SECRET', null)),
@@ -67,10 +71,14 @@ return [
 - usersModel = is the alias name used in you app
 - deleteFileS3 = if the record of the file in the database is deleted and it's marked true, the deletion is launched in the S3 deposit
 - tableFiles = name of table used to store file data, default is `uppy_files`
+- MaxFileSize = optional maximum upload size in bytes; when set, `filesize` in sign/create requests is validated server-side (`null` = no limit)
+- MultipartThreshold = file size in bytes above which the client should use multipart upload (default 100 MiB); exposed to the browser via `UppyHelper::getUploadConfig()` and `window.UppyUploadConfig`
 - AcceptedContentTypes = list of content-type stored in S3 and saved in database
 - AcceptedExtensions = list of file extensions stored in S3 and saved in database
 - lifeTimeGetObject = life time generated link to access file in S3
 - lifeTimePutObject = life time generated link to post file in S3
+- lifeTimeUploadPart = life time generated link to upload a single multipart part
+- use_path_style_endpoint = set `true` for MinIO and other S3-compatible stores (or via `S3_USE_PATH_STYLE_ENDPOINT` env)
 - region = configured region S3
 - endpoint = endpoint server to PUT/POST/GET S3 files
 - key = S3 account key
@@ -113,12 +121,18 @@ $this->start('bottom_script');
 $this->end();
 ```
 
-The `assets` method loads the Uppy v5 CSS and JavaScript from the CDN and initializes the `Uppy` and `Dashboard` instances. The `widget` method generates the necessary HTML for the Uppy Dashboard. The `add.js` file should contain your custom Uppy configuration, such as the `AwsS3` plugin and event listeners.
+The `assets` method loads the Uppy v5 CSS and JavaScript from the CDN, exposes `window.UppyUploadConfig` (from `Uppy.MaxFileSize` and `Uppy.MultipartThreshold`), and initializes the `Uppy` and `Dashboard` instances. The `widget` method generates the necessary HTML for the Uppy Dashboard. The `add.js` file should contain your custom Uppy configuration, such as the `AwsS3` plugin and event listeners.
+
+See `Docs/Documentation/Multipart-Upload.md` for large-file multipart upload setup.
 
 Enpoints
 -------
 
 - /uppy/files/sign = sign with credentials and return signed url to upload file in S3 directly in front
+- /uppy/files/create-multipart-upload = start a multipart upload; returns `uploadId` and object `key`
+- /uppy/files/sign-part = presign a single multipart upload part
+- /uppy/files/complete-multipart-upload = complete a multipart upload with part ETags
+- /uppy/files/abort-multipart-upload = abort an in-progress multipart upload
 - /uppy/files/save = save register just uploaded in database with correct S3 path
 - /uppy/files/delete = delete register in database, if Uppy.Props.deleteFileS3 is true remove from S3
 - /uppy/files/view = sign with credentials and return signed url to access file in S3 directly in front

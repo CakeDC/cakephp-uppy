@@ -85,7 +85,7 @@ trait S3Trait
      * @see /config/cors.xml
      * @param string $path string used as path in S3
      * @param string $name string filename
-     * @return \Psr\Http\Message\RequestInterface
+     * @return string
      */
     protected function presignedUrl(string $path, string $name): string
     {
@@ -328,10 +328,11 @@ trait S3Trait
             'SourceFile' => $sourceFilePath,
         ];
         $result = $s3Client->putObject($s3Options);
-        if (!array_key_exists('@metadata', $result) || !array_key_exists('statusCode', $result['@metadata'])) {
+        $metadata = $result['@metadata'] ?? null;
+        if (!is_array($metadata) || !isset($metadata['statusCode'])) {
             throw new \Exception('Error on response data. Please try again.');
         }
-        if ($result['@metadata']['statusCode'] !== 200) {
+        if ($metadata['statusCode'] !== 200) {
             throw new \Exception('Error coping/moving file. Please try again.');
         }
     }
