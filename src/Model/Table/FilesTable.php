@@ -2,12 +2,12 @@
 declare(strict_types=1);
 
 /**
- * Copyright 2023, Cake Development Corporation (https://www.cakedc.com)
+ * Copyright 2023 - 2026, Cake Development Corporation (https://www.cakedc.com)
  *
  * Licensed under The MIT License
  * Redistributions of files must retain the above copyright notice.
  *
- * @copyright Copyright 2023, Cake Development Corporation (https://www.cakedc.com)
+ * @copyright Copyright 2023 - 2026, Cake Development Corporation (https://www.cakedc.com)
  * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
 namespace CakeDC\Uppy\Model\Table;
@@ -32,13 +32,18 @@ use function Cake\I18n\__;
  * Files Model
  *
  * @method \CakeDC\Uppy\Model\Entity\File newEmptyEntity()
- * @method \CakeDC\Uppy\Model\Entity\File newEntity(array $data, array $options = [])
- * @method \CakeDC\Uppy\Model\Entity\File[] newEntities(array $data, array $options = [])
- * @method \CakeDC\Uppy\Model\Entity\File findOrCreate(array|callable $search, ?callable $callback = null, array $options = [])
- * @method \CakeDC\Uppy\Model\Entity\File patchEntity(\Cake\Datasource\EntityInterface $entity, array $data, array $options = [])
- * @method \CakeDC\Uppy\Model\Entity\File[] patchEntities(iterable $entities, array $data, array $options = [])
- * @method \CakeDC\Uppy\Model\Entity\File|false save(\Cake\Datasource\EntityInterface $entity, $options = [])
- * @method \CakeDC\Uppy\Model\Entity\File saveOrFail(\Cake\Datasource\EntityInterface $entity, $options = [])
+ * @method \CakeDC\Uppy\Model\Entity\File newEntity(array<string, mixed> $data, array<string, mixed> $options = [])
+ * @method array<\CakeDC\Uppy\Model\Entity\File> newEntities(array<int, array<string, mixed>> $data, array<string, mixed> $options = [])
+ * @method \CakeDC\Uppy\Model\Entity\File get(mixed $primaryKey, array<string, mixed> $options = [])
+ * @method \CakeDC\Uppy\Model\Entity\File findOrCreate(\Cake\ORM\Query\SelectQuery|array<string, mixed>|string $search, ?callable $callback = null, array<string, mixed> $options = [])
+ * @method \CakeDC\Uppy\Model\Entity\File patchEntity(\Cake\Datasource\EntityInterface $entity, array<string, mixed> $data, array<string, mixed> $options = [])
+ * @method array<\CakeDC\Uppy\Model\Entity\File> patchEntities(iterable<\CakeDC\Uppy\Model\Entity\File> $entities, array<int, array<string, mixed>> $data, array<string, mixed> $options = [])
+ * @method \CakeDC\Uppy\Model\Entity\File|false save(\Cake\Datasource\EntityInterface $entity, array<string, mixed> $options = [])
+ * @method \CakeDC\Uppy\Model\Entity\File saveOrFail(\Cake\Datasource\EntityInterface $entity, array<string, mixed> $options = [])
+ * @method \Cake\Datasource\ResultSetInterface<\CakeDC\Uppy\Model\Entity\File>|false saveMany(iterable<\CakeDC\Uppy\Model\Entity\File> $entities, array<string, mixed> $options = [])
+ * @method \Cake\Datasource\ResultSetInterface<\CakeDC\Uppy\Model\Entity\File> saveManyOrFail(iterable<\CakeDC\Uppy\Model\Entity\File> $entities, array<string, mixed> $options = [])
+ * @method \Cake\Datasource\ResultSetInterface<\CakeDC\Uppy\Model\Entity\File>|false deleteMany(iterable<\CakeDC\Uppy\Model\Entity\File> $entities, array<string, mixed> $options = [])
+ * @method \Cake\Datasource\ResultSetInterface<\CakeDC\Uppy\Model\Entity\File> deleteManyOrFail(iterable<\CakeDC\Uppy\Model\Entity\File> $entities, array<string, mixed> $options = [])
  * @mixin \Cake\ORM\Behavior\TimestampBehavior
  */
 class FilesTable extends Table
@@ -60,7 +65,7 @@ class FilesTable extends Table
     /**
      * Initialize method
      *
-     * @param array $config The configuration for the Table.
+     * @param array<string, mixed> $config The configuration for the Table.
      * @return void
      */
     public function initialize(array $config): void
@@ -173,9 +178,9 @@ class FilesTable extends Table
     /**
      * If it's configured prop deleteFileStorage delete file from storage
      *
-     * @param \Cake\Event\EventInterface $event The beforeSave event that was fired
+     * @param \Cake\Event\EventInterface<\Cake\ORM\Table> $event The beforeSave event that was fired
      * @param \CakeDC\Uppy\Model\Entity\File $entity The entity that is going to be saved
-     * @param \ArrayObject $options options
+     * @param \ArrayObject<string, mixed> $options options
      * @return void
      */
     public function afterDelete(EventInterface $event, File $entity, ArrayObject $options): void
