@@ -2,12 +2,12 @@
 declare(strict_types=1);
 
 /**
- * Copyright 2024, Cake Development Corporation (https://www.cakedc.com)
+ * Copyright 2024 - 2026, Cake Development Corporation (https://www.cakedc.com)
  *
  * Licensed under The MIT License
  * Redistributions of files must retain the above copyright notice.
  *
- * @copyright Copyright 2024, Cake Development Corporation (https://www.cakedc.com)
+ * @copyright Copyright 2024 - 2026, Cake Development Corporation (https://www.cakedc.com)
  * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
 namespace CakeDC\Uppy\Storage;
@@ -18,7 +18,7 @@ use Cake\Http\Client\Request;
 use Laminas\Diactoros\Uri;
 use Psr\Http\Message\RequestInterface;
 
-class R2Adapter implements StorageAdapterInterface
+class R2Adapter implements MultipartUploadAdapterInterface
 {
     /**
      * @param \Aws\S3\S3Client|null $client
@@ -113,5 +113,102 @@ class R2Adapter implements StorageAdapterInterface
         $client->deleteObject(['Bucket' => $this->bucket(), 'Key' => $path]);
 
         return !$client->doesObjectExist($this->bucket(), $path);
+    }
+
+    /**
+     * @param string $key
+     * @param string $contentType
+     * @return array{uploadId: string, key: string}
+     */
+    public function createMultipartUpload(string $key, string $contentType): array
+    {
+        if (Configure::read('Uppy.R2.config.connection') === 'dummy') {
+            return [
+                'uploadId' => 'dummy-upload-id',
+                'key' => $key,
+            ];
+        }
+
+        $result = $this->getClient()->createMultipartUpload([
+            'Bucket' => $this->bucket(),
+            'Key' => $key,
+            'ContentType' => $contentType,
+        ]);
+
+        return [
+            'uploadId' => (string)$result['UploadId'],
+            'key' => $key,
+        ];
+    }
+
+    /**
+     * @param string $key
+     * @param string $uploadId
+     * @param int $partNumber
+     * @return \Psr\Http\Message\RequestInterface
+     */
+    public function createPresignedUploadPart(string $key, string $uploadId, int $partNumber): RequestInterface
+    {
+        if (Configure::read('Uppy.R2.config.connection') === 'dummy') {
+            return (new Request())->withUri(new Uri('https://example.com/part'));
+        }
+
+        $command = $this->getClient()->getCommand('UploadPart', [
+            'Bucket' => $this->bucket(),
+            'Key' => $key,
+            'UploadId' => $uploadId,
+            'PartNumber' => $partNumber,
+        ]);
+
+        return $this->getClient()->createPresignedRequest(
+            $command,
+            Configure::read('Uppy.R2.constants.lifeTimeUploadPart', '+20 minutes'),
+        );
+    }
+
+    /**
+     * @param string $key
+     * @param string $uploadId
+     * @param array<int, array{PartNumber: int, ETag: string}> $parts
+     * @return array{location: string}
+     */
+    public function completeMultipartUpload(string $key, string $uploadId, array $parts): array
+    {
+        if (Configure::read('Uppy.R2.config.connection') === 'dummy') {
+            return [
+                'location' => 'https://example.com/' . $key,
+            ];
+        }
+
+        $result = $this->getClient()->completeMultipartUpload([
+            'Bucket' => $this->bucket(),
+            'Key' => $key,
+            'UploadId' => $uploadId,
+            'MultipartUpload' => [
+                'Parts' => $parts,
+            ],
+        ]);
+
+        return [
+            'location' => (string)$result['Location'],
+        ];
+    }
+
+    /**
+     * @param string $key
+     * @param string $uploadId
+     * @return void
+     */
+    public function abortMultipartUpload(string $key, string $uploadId): void
+    {
+        if (Configure::read('Uppy.R2.config.connection') === 'dummy') {
+            return;
+        }
+
+        $this->getClient()->abortMultipartUpload([
+            'Bucket' => $this->bucket(),
+            'Key' => $key,
+            'UploadId' => $uploadId,
+        ]);
     }
 }

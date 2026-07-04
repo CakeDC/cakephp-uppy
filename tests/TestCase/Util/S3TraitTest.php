@@ -10,6 +10,7 @@ use Cake\Core\Configure;
 use Cake\TestSuite\TestCase;
 use CakeDC\Uppy\Util\S3Trait;
 use Exception;
+use InvalidArgumentException;
 
 class S3TraitTest extends TestCase
 {
@@ -29,11 +30,14 @@ class S3TraitTest extends TestCase
             ],
             'bucket' => 'test-bucket',
         ]);
+        Configure::write('Uppy.AcceptedContentTypes', ['image/jpeg', 'image/png', 'application/pdf']);
     }
 
     protected function tearDown(): void
     {
         Configure::delete('Uppy.S3');
+        Configure::delete('Uppy.AcceptedContentTypes');
+        Configure::delete('Uppy.MaxFileSize');
         parent::tearDown();
     }
 
@@ -371,5 +375,146 @@ class S3TraitTest extends TestCase
         $this->expectException(Exception::class);
         $this->expectExceptionMessage('Error listing files from S3:');
         $subject->listFiles();
+    }
+
+    // ── buildStorageKey ───────────────────────────────────────────────────────
+
+    public function testBuildStorageKeyGeneratesUuidPrefixedKey(): void
+    {
+        $subject = new class {
+            use S3Trait;
+
+            public function testBuildStorageKey(string $filename, ?string $prefix = null): string
+            {
+                return $this->buildStorageKey($filename, $prefix);
+            }
+        };
+
+        $result = $subject->testBuildStorageKey('video.mp4');
+        $this->assertStringContainsString('-video-mp4', $result);
+        // Should have UUID format at the start
+        $this->assertMatchesRegularExpression('/^[a-f0-9-]{36}-/', $result);
+    }
+
+    public function testBuildStorageKeyWithPrefixIncludesPrefix(): void
+    {
+        $subject = new class {
+            use S3Trait;
+
+            public function testBuildStorageKey(string $filename, ?string $prefix = null): string
+            {
+                return $this->buildStorageKey($filename, $prefix);
+            }
+        };
+
+        $result = $subject->testBuildStorageKey('video.mp4', 'uploads/videos');
+        $this->assertStringContainsString('uploads/videos/', $result);
+        $this->assertStringContainsString('-video-mp4', $result);
+    }
+
+    public function testBuildStorageKeyTrimsSlashesFromPrefix(): void
+    {
+        $subject = new class {
+            use S3Trait;
+
+            public function testBuildStorageKey(string $filename, ?string $prefix = null): string
+            {
+                return $this->buildStorageKey($filename, $prefix);
+            }
+        };
+
+        $result = $subject->testBuildStorageKey('file.pdf', '/documents/');
+        $this->assertStringStartsWith('documents/', $result);
+        $this->assertStringNotContainsString('//', $result);
+    }
+
+    // ── assertAcceptedContentType ────────────────────────────────────────────
+
+    public function testAssertAcceptedContentTypeDoesNotThrowForValidType(): void
+    {
+        $subject = new class {
+            use S3Trait;
+
+            public function testAssertAcceptedContentType(string $contentType): void
+            {
+                $this->assertAcceptedContentType($contentType);
+            }
+        };
+
+        // Should not throw
+        $subject->testAssertAcceptedContentType('image/jpeg');
+        $this->assertTrue(true);
+    }
+
+    public function testAssertAcceptedContentTypeThrowsForInvalidType(): void
+    {
+        $subject = new class {
+            use S3Trait;
+
+            public function testAssertAcceptedContentType(string $contentType): void
+            {
+                $this->assertAcceptedContentType($contentType);
+            }
+        };
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('contentType video/mp4 is not valid');
+        $subject->testAssertAcceptedContentType('video/mp4');
+    }
+
+    // ── assertMaxFileSize ─────────────────────────────────────────────────────
+
+    public function testAssertMaxFileSizeDoesNotThrowWhenNoLimitSet(): void
+    {
+        Configure::write('Uppy.MaxFileSize', null);
+
+        $subject = new class {
+            use S3Trait;
+
+            public function testAssertMaxFileSize(int $filesize): void
+            {
+                $this->assertMaxFileSize($filesize);
+            }
+        };
+
+        // Should not throw for any size when no limit
+        $subject->testAssertMaxFileSize(999999999);
+        $this->assertTrue(true);
+    }
+
+    public function testAssertMaxFileSizeDoesNotThrowWhenBelowLimit(): void
+    {
+        Configure::write('Uppy.MaxFileSize', 10000000); // 10 MB
+
+        $subject = new class {
+            use S3Trait;
+
+            public function testAssertMaxFileSize(int $filesize): void
+            {
+                $this->assertMaxFileSize($filesize);
+            }
+        };
+
+        // Should not throw for 5 MB
+        $subject->testAssertMaxFileSize(5000000);
+        $this->assertTrue(true);
+    }
+
+    public function testAssertMaxFileSizeThrowsWhenExceedsLimit(): void
+    {
+        Configure::write('Uppy.MaxFileSize', 10000000); // 10 MB
+
+        $subject = new class {
+            use S3Trait;
+
+            public function testAssertMaxFileSize(int $filesize): void
+            {
+                $this->assertMaxFileSize($filesize);
+            }
+        };
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('File size 20000000 exceeds maximum allowed size 10000000');
+        $subject->testAssertMaxFileSize(20000000); // 20 MB
     }
 }

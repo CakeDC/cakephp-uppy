@@ -2,12 +2,12 @@
 declare(strict_types=1);
 
 /**
- * Copyright 2023, Cake Development Corporation (https://www.cakedc.com)
+ * Copyright 2023 - 2026, Cake Development Corporation (https://www.cakedc.com)
  *
  * Licensed under The MIT License
  * Redistributions of files must retain the above copyright notice.
  *
- * @copyright Copyright 2023, Cake Development Corporation (https://www.cakedc.com)
+ * @copyright Copyright 2023 - 2026, Cake Development Corporation (https://www.cakedc.com)
  * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
  *
  * Uppy plugin configuration template.
@@ -25,6 +25,19 @@ return [
          * Set UPPY_DRIVER in your .env file or override here.
          */
         'driver' => env('UPPY_DRIVER', 's3'),
+
+        /*
+         * Maximum file size in bytes. null = no limit.
+         * When set, filesize in sign/create requests is validated server-side.
+         */
+        'MaxFileSize' => null,
+
+        /*
+         * File size threshold (in bytes) for using multipart upload.
+         * Default: 104857600 (100 MiB)
+         * Files above this size should use multipart upload for better reliability.
+         */
+        'MultipartThreshold' => 104857600,
 
         'Props' => [
             'usersModel' => 'Users',
@@ -65,10 +78,12 @@ return [
             'constants' => [
                 'lifeTimeGetObject' => '+20 minutes',
                 'lifeTimePutObject' => '+5 minutes',
+                'lifeTimeUploadPart' => '+20 minutes',
             ],
             'config' => [
                 'version' => 'latest',
                 'region' => env('S3_REGION', null),
+                'use_path_style_endpoint' => (bool)env('S3_USE_PATH_STYLE_ENDPOINT', false),
                 'credentials' => [
                     'key' => env('S3_KEY', null),
                     'secret' => env('S3_SECRET', null),
@@ -101,6 +116,7 @@ return [
             'constants' => [
                 'lifeTimePutObject' => '+5 minutes',
                 'lifeTimeGetObject' => '+20 minutes',
+                'lifeTimeUploadPart' => '+20 minutes',
             ],
             'config' => [
                 'version' => env('R2_VERSION', 'latest'),
