@@ -34,16 +34,16 @@ use function Cake\I18n\__;
  * @method \CakeDC\Uppy\Model\Entity\File newEmptyEntity()
  * @method \CakeDC\Uppy\Model\Entity\File newEntity(array<string, mixed> $data, array<string, mixed> $options = [])
  * @method array<\CakeDC\Uppy\Model\Entity\File> newEntities(array<int, array<string, mixed>> $data, array<string, mixed> $options = [])
- * @method \CakeDC\Uppy\Model\Entity\File get(mixed $primaryKey, array<string, mixed> $options = [])
+ * @method \CakeDC\Uppy\Model\Entity\File get(mixed $primaryKey, array|string $finder = 'all', \Psr\SimpleCache\CacheInterface|string|null $cache = null, \Closure|string|null $cacheKey = null, mixed ...$args)
  * @method \CakeDC\Uppy\Model\Entity\File findOrCreate(\Cake\ORM\Query\SelectQuery|array<string, mixed>|string $search, ?callable $callback = null, array<string, mixed> $options = [])
  * @method \CakeDC\Uppy\Model\Entity\File patchEntity(\Cake\Datasource\EntityInterface $entity, array<string, mixed> $data, array<string, mixed> $options = [])
  * @method array<\CakeDC\Uppy\Model\Entity\File> patchEntities(iterable<\CakeDC\Uppy\Model\Entity\File> $entities, array<int, array<string, mixed>> $data, array<string, mixed> $options = [])
  * @method \CakeDC\Uppy\Model\Entity\File|false save(\Cake\Datasource\EntityInterface $entity, array<string, mixed> $options = [])
  * @method \CakeDC\Uppy\Model\Entity\File saveOrFail(\Cake\Datasource\EntityInterface $entity, array<string, mixed> $options = [])
- * @method \Cake\Datasource\ResultSetInterface<\CakeDC\Uppy\Model\Entity\File>|false saveMany(iterable<\CakeDC\Uppy\Model\Entity\File> $entities, array<string, mixed> $options = [])
- * @method \Cake\Datasource\ResultSetInterface<\CakeDC\Uppy\Model\Entity\File> saveManyOrFail(iterable<\CakeDC\Uppy\Model\Entity\File> $entities, array<string, mixed> $options = [])
- * @method \Cake\Datasource\ResultSetInterface<\CakeDC\Uppy\Model\Entity\File>|false deleteMany(iterable<\CakeDC\Uppy\Model\Entity\File> $entities, array<string, mixed> $options = [])
- * @method \Cake\Datasource\ResultSetInterface<\CakeDC\Uppy\Model\Entity\File> deleteManyOrFail(iterable<\CakeDC\Uppy\Model\Entity\File> $entities, array<string, mixed> $options = [])
+ * @method iterable<\CakeDC\Uppy\Model\Entity\File>|false saveMany(iterable<\CakeDC\Uppy\Model\Entity\File> $entities, array<string, mixed> $options = [])
+ * @method iterable<\CakeDC\Uppy\Model\Entity\File> saveManyOrFail(iterable<\CakeDC\Uppy\Model\Entity\File> $entities, array<string, mixed> $options = [])
+ * @method iterable<\CakeDC\Uppy\Model\Entity\File>|false deleteMany(iterable<\CakeDC\Uppy\Model\Entity\File> $entities, array<string, mixed> $options = [])
+ * @method iterable<\CakeDC\Uppy\Model\Entity\File> deleteManyOrFail(iterable<\CakeDC\Uppy\Model\Entity\File> $entities, array<string, mixed> $options = [])
  * @mixin \Cake\ORM\Behavior\TimestampBehavior
  */
 class FilesTable extends Table
