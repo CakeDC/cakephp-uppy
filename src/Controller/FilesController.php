@@ -18,10 +18,10 @@ use Cake\Datasource\Exception\RecordNotFoundException;
 use Cake\Http\Response;
 use Cake\ORM\Exception\MissingTableClassException;
 use Cake\Utility\Inflector;
+use Cake\Utility\Text;
 use CakeDC\Uppy\Storage\AdapterFactory;
 use CakeDC\Uppy\Storage\MultipartUploadAdapterInterface;
 use CakeDC\Uppy\Storage\StorageAdapterInterface;
-use CakeDC\Uppy\Util\S3Trait;
 use InvalidArgumentException;
 use UnexpectedValueException;
 use function Cake\I18n\__;
@@ -34,8 +34,6 @@ use function Cake\I18n\__;
  */
 class FilesController extends AppController
 {
-    use S3Trait;
-
     private StorageAdapterInterface $storageAdapter;
 
     private const UPLOAD_SIGNING_ACTIONS = [
@@ -513,12 +511,66 @@ class FilesController extends AppController
      */
     private function s3ErrorResponse(AwsException $exception): Response
     {
-        $message = $exception->getAwsErrorMessage() ?: $exception->getMessage();
+        $message = $exception->getAwsErrorMessage() ?? $exception->getMessage();
 
         return $this->jsonResponse([
             'error' => true,
             'code' => 502,
             'message' => $message,
         ], 502);
+    }
+
+    /**
+     * Build a storage key with UUID prefix and optional path prefix.
+     *
+     * @param string $filename Original filename.
+     * @param string|null $prefix Optional path prefix.
+     * @return string Storage key.
+     */
+    private function buildStorageKey(string $filename, ?string $prefix = null): string
+    {
+        $key = Text::uuid() . '-' . Text::slug($filename);
+
+        if ($prefix !== null && $prefix !== '') {
+            $key = trim($prefix, '/') . '/' . $key;
+        }
+
+        return $key;
+    }
+
+    /**
+     * Assert that a content type is in the accepted list.
+     *
+     * @param string $contentType MIME type to validate.
+     * @return void
+     * @throws \InvalidArgumentException If content type is not accepted.
+     */
+    private function assertAcceptedContentType(string $contentType): void
+    {
+        $accepted = (array)Configure::read('Uppy.AcceptedContentTypes', []);
+
+        if (!in_array($contentType, $accepted, true)) {
+            throw new InvalidArgumentException(
+                __('contentType {0} is not valid', $contentType),
+            );
+        }
+    }
+
+    /**
+     * Assert that a file size does not exceed the configured maximum.
+     *
+     * @param int $filesize File size in bytes.
+     * @return void
+     * @throws \InvalidArgumentException If file size exceeds maximum.
+     */
+    private function assertMaxFileSize(int $filesize): void
+    {
+        $maxFileSize = Configure::read('Uppy.MaxFileSize');
+
+        if ($maxFileSize !== null && $filesize > $maxFileSize) {
+            throw new InvalidArgumentException(
+                __('File size {0} exceeds maximum allowed size {1}', $filesize, $maxFileSize),
+            );
+        }
     }
 }
