@@ -176,6 +176,27 @@ class FilesTableTest extends TestCase
         $table->afterDelete(new Event('Model.afterDelete'), $entity, new ArrayObject());
     }
 
+    public function testAfterDeleteHonorsLegacyDeleteFileS3Key(): void
+    {
+        Configure::delete('Uppy.Props.deleteFileStorage');
+        Configure::write('Uppy.Props.deleteFileS3', true);
+
+        $adapter = $this->createMock(StorageAdapterInterface::class);
+        $adapter->expects($this->once())
+            ->method('deleteObject')
+            ->with('uuid-file.png')
+            ->willReturn(true);
+
+        $table = $this->getMockBuilder(FilesTable::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['getStorageAdapter'])
+            ->getMock();
+        $table->method('getStorageAdapter')->willReturn($adapter);
+
+        $entity = new File(['path' => 'uuid-file.png', 'filename' => 'photo.png']);
+        $table->afterDelete(new Event('Model.afterDelete'), $entity, new ArrayObject());
+    }
+
     // ── findDatatable ─────────────────────────────────────────────────────────
 
     public function testFindDatatableAppliesUserIdFilter(): void

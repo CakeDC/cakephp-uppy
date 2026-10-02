@@ -52,7 +52,8 @@ return [
             /*
              * When true and a file record is deleted, the object is also
              * removed from storage. Renamed from deleteFileS3 to apply to
-             * all drivers. Falls back to deleteFileS3 for backwards compat.
+             * all drivers; deleteFileS3 is @deprecated but still honored as
+             * a fallback for backwards compatibility.
              */
             'deleteFileStorage' => true,
             'tableFiles' => 'uppy_files',

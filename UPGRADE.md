@@ -266,6 +266,24 @@ The `delete` action has been added to `FormProtection`'s `unlockedActions` list 
 
 ---
 
+### 12. `S3Trait` compatibility shim
+
+**Type:** Informational (only if you extended `S3Trait`)
+
+`CakeDC\Uppy\Util\S3Trait` remains available as a deprecated shim, but the storage backend was refactored into adapters:
+
+- `S3Trait::_getS3Client()` (3.x) was renamed to `getS3Client()`. A deprecated `_getS3Client()` alias now delegates to `getS3Client()`; override `makeS3Client()` to inject a custom client.
+- The multipart methods (`createMultipartUpload()`, `createPresignedUploadPart()`, `completeMultipartUpload()`, `abortMultipartUpload()`) moved out of the trait into `CakeDC\Uppy\Storage\MultipartUploadAdapterInterface`, implemented by `S3Adapter` and `R2Adapter`. Classes that extended the trait to override these methods must implement/override the adapter instead.
+- New code should use `StorageAdapterInterface` / `MultipartUploadAdapterInterface` via `AdapterFactory::create()`.
+
+### 13. `Uppy.Props.deleteFileS3` deprecated
+
+**Type:** Informational
+
+`Uppy.Props.deleteFileS3` is deprecated in favor of `Uppy.Props.deleteFileStorage`. The old key is still honored as a fallback when `deleteFileStorage` is not set. Update your `config/uppy.php`.
+
+---
+
 ## Summary of required changes
 
 | # | Area | Action required |
@@ -279,3 +297,5 @@ The `delete` action has been added to `FormProtection`'s `unlockedActions` list 
 | 7 | PHP / Auth | Override `getCurrentUserId()` if using non-standard auth |
 | 8 | PHP / Auth | Review admin/multi-user workflows against new ownership checks |
 | 9 | PHP Entity | Replace mass-assignment of `path`, `adapter`, `hash`, etc. with explicit property assignment |
+| 10 | Config PHP | `Uppy.Props.deleteFileS3` deprecated → use `deleteFileStorage` |
+| 11 | PHP / Trait | If you extended `S3Trait`: use `getS3Client()`/`makeS3Client()` and the multipart adapter interface |
