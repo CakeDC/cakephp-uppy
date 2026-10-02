@@ -55,6 +55,7 @@ require_once $root . '/vendor/autoload.php';
  * and define the data required by your plugin here.
  */
 require_once $root . '/vendor/cakephp/cakephp/tests/bootstrap.php';
+require_once CAKE . 'functions.php';
 
 if (file_exists($root . '/config/bootstrap.php')) {
     require $root . '/config/bootstrap.php';

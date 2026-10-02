@@ -5,8 +5,10 @@ namespace CakeDC\Uppy\Test\TestCase\Model\Table;
 
 use ArrayObject;
 use Cake\Core\Configure;
+use Cake\Core\Plugin;
 use Cake\Datasource\ConnectionManager;
 use Cake\Event\Event;
+use Cake\ORM\Association\BelongsTo;
 use Cake\ORM\TableRegistry;
 use Cake\TestSuite\TestCase;
 use CakeDC\Uppy\Model\Entity\File;
@@ -90,6 +92,27 @@ class FilesTableTest extends TestCase
         $conn->execute('DROP TABLE IF EXISTS users');
         TableRegistry::getTableLocator()->clear();
         parent::tearDown();
+    }
+
+    // ── initialize ────────────────────────────────────────────────────────────
+
+    public function testInitializeWithTemplateConfigRegistersUsersAssociation(): void
+    {
+        Configure::delete('Uppy');
+        Configure::write(require Plugin::path('CakeDC/Uppy') . 'config' . DIRECTORY_SEPARATOR . 'uppy.php');
+
+        TableRegistry::getTableLocator()->clear();
+
+        $table = TableRegistry::getTableLocator()->get('CakeDC/Uppy.Files', [
+            'connection' => ConnectionManager::get('test'),
+        ]);
+
+        $this->assertSame('uppy_files', $table->getTable());
+        $this->assertTrue($table->hasAssociation('Users'));
+        $association = $table->getAssociation('Users');
+        $this->assertInstanceOf(BelongsTo::class, $association);
+        $this->assertSame('user_id', $association->getForeignKey());
+        $this->assertSame('Users', $association->getTarget()->getAlias());
     }
 
     // ── Validation ────────────────────────────────────────────────────────────

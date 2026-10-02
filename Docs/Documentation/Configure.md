@@ -46,6 +46,7 @@ return [
         'routes' => true,
 
         'Props' => [
+            'usersAliasModel' => 'Users',
             'usersModel' => 'Users',
             'deleteFileStorage' => true,
             'tableFiles' => 'uppy_files',
@@ -73,6 +74,7 @@ return [
             ],
             'config' => [
                 'version' => 'latest',
+                'connection' => env('S3_CONNECTION', 'real'),
                 'region' => env('S3_REGION', null),
                 'credentials' => [
                     'key'    => env('S3_KEY', null),
@@ -118,7 +120,8 @@ return [
 
 ### Props
 
-- `usersModel` — alias name used in your app for the users association
+- `usersAliasModel` — association alias for the `belongsTo` users relation on `FilesTable`, and the table used by the `existsIn('user_id', …)` rule; default `Users`
+- `usersModel` — users table/alias used to resolve the owner of a file when saving; default `Users`
 - `deleteFileStorage` — when `true`, deleting a file record also removes the object from the active storage backend. (Renamed from `deleteFileS3`; the old key still works as a fallback for backwards compatibility.)
 - `tableFiles` — name of the table used to store file metadata, default `uppy_files`
 
