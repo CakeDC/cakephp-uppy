@@ -15,7 +15,7 @@
         "cakephp/cakephp": "^5.1",
         "ext-mbstring": "*",
         "aws/aws-sdk-php": "^3.279",
-        "guzzlehttp/psr7": "^2.6",
+        "guzzlehttp/psr7": "^2.6.3",
         "laminas/laminas-diactoros": "^3.0",
         "psr/http-message": "^2.0",
         "ext-json": "*"
