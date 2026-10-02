@@ -322,10 +322,7 @@ class FilesController extends AppController
         );
 
         // Store the generated key in session so save() can verify it was server-issued.
-        $session = $this->getRequest()->getSession();
-        $pending = $session->read('Uppy.pendingUploads', []);
-        $pending[$storageKey] = time();
-        $session->write('Uppy.pendingUploads', $pending);
+        $this->rememberPendingUpload($storageKey);
 
         $presignedRequest = $this->storageAdapter->createPresignedRequest($storageKey, $contentType);
 
@@ -494,6 +491,10 @@ class FilesController extends AppController
             return $this->s3ErrorResponse($exception);
         }
 
+        // Register the completed key so the follow-up save() accepts it as a
+        // server-issued path (one-time token, consumed by save()).
+        $this->rememberPendingUpload((string)$key);
+
         return $this->jsonResponse([
             'error' => false,
             'code' => 200,
@@ -543,6 +544,24 @@ class FilesController extends AppController
             'error' => false,
             'code' => 200,
         ]);
+    }
+
+    /**
+     * Register a server-issued storage key as a pending upload for this session.
+     *
+     * `save()` only accepts paths issued by the server in the same session and
+     * consumes them one-time. Both `sign()` and `completeMultipartUpload()`
+     * register their keys here.
+     *
+     * @param string $key Storage key issued by the server.
+     * @return void
+     */
+    private function rememberPendingUpload(string $key): void
+    {
+        $session = $this->getRequest()->getSession();
+        $pending = $session->read('Uppy.pendingUploads', []);
+        $pending[$key] = time();
+        $session->write('Uppy.pendingUploads', $pending);
     }
 
     /**

@@ -136,7 +136,7 @@ If you publish your own JavaScript instead of using the bundled files, update it
 
 **Type:** Breaking — all clients
 
-`POST /uppy/files/save` now checks that each item's `path` value was previously issued by the server during a `sign()` call in the same session. Paths that were not issued by the server (e.g., paths constructed or modified on the client) are rejected immediately with:
+`POST /uppy/files/save` now checks that each item's `path` value was previously issued by the server in the same session — either by a `sign()` call (single upload) or by a successful `completeMultipartUpload()` (multipart upload). Paths that were not issued by the server (e.g., paths constructed or modified on the client) are rejected immediately with:
 
 ```json
 { "error": true, "message": "Invalid or unrecognized file path" }
@@ -146,7 +146,7 @@ HTTP status remains 200 (JSON API contract), but `error` is `true`.
 
 Each token is **one-time use**: once a path has been accepted by `save()`, it cannot be reused.
 
-**Migration:** Update the JavaScript that sends the `save()` request so that `obj.path` is set to the `key` value returned by `sign()`, not a value parsed from the S3 upload URL.
+**Migration:** Update the JavaScript that sends the `save()` request so that `obj.path` is set to the `key` value returned by `sign()` (single upload) or by `createMultipartUpload()` / `completeMultipartUpload()` (multipart upload), not a value parsed from the S3 upload URL. Completing a multipart upload registers its key as a server-issued path, so the documented `multipart → POST /save` flow works out of the box.
 
 **Before (old pattern — no longer accepted):**
 ```js

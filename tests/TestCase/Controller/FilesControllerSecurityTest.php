@@ -173,6 +173,56 @@ class FilesControllerSecurityTest extends TestCase
         $this->assertFalse($body['result']['error']);
     }
 
+    public function testMultipartCompletionRegistersPathForSave(): void
+    {
+        $this->loginAs(1);
+        $key = 'alerrt/ResourceFiles/multipart-complete.png';
+
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+        $this->post('/uppy/files/complete-multipart-upload', json_encode([
+            'uploadId' => 'dummy-upload-id',
+            'key' => $key,
+            'parts' => [['PartNumber' => 1, 'ETag' => '"abc"']],
+        ]));
+
+        $complete = json_decode((string)$this->_response->getBody(), true);
+        $this->assertFalse($complete['error']);
+        $this->assertSame($key, $complete['key']);
+
+        // Regression: completing a multipart upload must register its key as a
+        // server-issued pending upload, otherwise the follow-up save() rejects it
+        // with "Invalid or unrecognized file path".
+        // Server::run closes the session at the end of the request, so read the
+        // persisted data from $_SESSION (the Session object would start a new one).
+        $pending = (array)($_SESSION['Uppy']['pendingUploads'] ?? []);
+        $this->assertArrayHasKey($key, $pending);
+
+        // IntegrationTestTrait does not carry controller-side session writes to the
+        // next request; forward the server-issued token to the save() request.
+        $this->session(['Auth.userId' => 1, 'Uppy.pendingUploads' => $pending]);
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+        $this->post('/uppy/files/save', json_encode([
+            'items' => [[
+                'model' => 'Users',
+                'foreign_key' => 1,
+                'filename' => 'multipart-complete.png',
+                'filesize' => 524288000,
+                'extension' => 'png',
+                'mime_type' => 'image/png',
+                'path' => $key,
+            ]],
+        ]));
+
+        $save = json_decode((string)$this->_response->getBody(), true);
+        $this->assertFalse($save['result']['error']);
+        $this->assertCount(1, $save['result']['saved_file_ids']);
+
+        $rows = ConnectionManager::get('test')
+            ->execute('SELECT path FROM uppy_files WHERE path = :path', ['path' => $key])
+            ->fetchAll('assoc');
+        $this->assertNotEmpty($rows, 'The multipart file metadata should be persisted');
+    }
+
     public function testSaveRejectsAlreadyUsedPath(): void
     {
         $signedKey = 'some-uuid-test.png';
