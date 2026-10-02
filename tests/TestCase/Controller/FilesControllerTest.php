@@ -20,8 +20,6 @@ use CakeDC\Uppy\Controller\FilesController;
 
 /**
  * CakeDC\Uppy\Controller\FilesController Test Case
- *
- * @uses \CakeDC\Uppy\Controller\FilesController
  */
 class FilesControllerTest extends TestCase
 {
