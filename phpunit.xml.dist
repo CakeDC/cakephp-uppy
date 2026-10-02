@@ -39,6 +39,7 @@
         </include>
         <deprecationTrigger>
             <function>Cake\Core\deprecationWarning</function>
+            <function>deprecationWarning</function>
         </deprecationTrigger>
     </source>
 </phpunit>
