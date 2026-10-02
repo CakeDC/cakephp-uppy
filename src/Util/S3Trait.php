@@ -36,7 +36,7 @@ trait S3Trait
      */
     protected function getS3Client(): S3Client
     {
-        return new S3Client(Configure::readOrFail('Uppy.S3.config'));
+        return $this->makeS3Client();
     }
 
     /**
@@ -220,6 +220,19 @@ trait S3Trait
     }
 
     /**
+     * Create an S3Client instance from configuration.
+     *
+     * Extracted as a protected hook so tests can override it to inject a mock
+     * client without making real AWS calls.
+     *
+     * @return \Aws\S3\S3Client
+     */
+    protected function makeS3Client(): S3Client
+    {
+        return new S3Client(Configure::readOrFail('Uppy.S3.config'));
+    }
+
+    /**
      * @param string $filename filename
      * @return bool
      * @throws \Exception
@@ -231,7 +244,7 @@ trait S3Trait
             'Bucket' => Configure::readOrFail('Uppy.S3.bucket'),
             'Prefix' => $filename,
         ]);
-        if ($list['Contents'] > 0) {
+        if (count((array)($list['Contents'] ?? [])) > 0) {
             return true;
         }
 

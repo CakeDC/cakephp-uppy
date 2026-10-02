@@ -40,6 +40,7 @@ return [
         'MultipartThreshold' => 104857600,
 
         'Props' => [
+            'usersAliasModel' => 'Users',
             'usersModel' => 'Users',
             /*
              * When true and a file record is deleted, the object is also
@@ -82,6 +83,7 @@ return [
             ],
             'config' => [
                 'version' => 'latest',
+                'connection' => env('S3_CONNECTION', 'real'),
                 'region' => env('S3_REGION', null),
                 'use_path_style_endpoint' => (bool)env('S3_USE_PATH_STYLE_ENDPOINT', false),
                 'credentials' => [

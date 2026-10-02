@@ -14,7 +14,9 @@ namespace CakeDC\Uppy\Controller;
 
 use Aws\Exception\AwsException;
 use Cake\Core\Configure;
+use Cake\Database\Exception\DatabaseException;
 use Cake\Datasource\Exception\RecordNotFoundException;
+use Cake\Http\Exception\ForbiddenException;
 use Cake\Http\Response;
 use Cake\ORM\Exception\MissingTableClassException;
 use Cake\Utility\Inflector;
@@ -24,6 +26,7 @@ use CakeDC\Uppy\Storage\MultipartUploadAdapterInterface;
 use CakeDC\Uppy\Storage\StorageAdapterInterface;
 use InvalidArgumentException;
 use UnexpectedValueException;
+use function Cake\Collection\collection;
 use function Cake\I18n\__;
 
 /**
@@ -59,7 +62,32 @@ class FilesController extends AppController
         if (!$this->components()->has('FormProtection')) {
             $this->loadComponent('FormProtection');
         }
-        $this->FormProtection->setConfig('unlockedActions', self::UPLOAD_SIGNING_ACTIONS);
+        $this->FormProtection->setConfig('unlockedActions', [
+            ...self::UPLOAD_SIGNING_ACTIONS,
+            'delete',
+        ]);
+        if (!$this->components()->has('Flash')) {
+            $this->loadComponent('Flash');
+        }
+    }
+
+    /**
+     * Returns the current authenticated user's identifier.
+     *
+     * Reads from the PSR-7 'identity' request attribute (set by
+     * cakephp/authentication middleware) with a fallback to the
+     * 'Auth.userId' session key for testing and legacy apps.
+     *
+     * @return string|int|null
+     */
+    protected function getCurrentUserId(): string|int|null
+    {
+        $identity = $this->getRequest()->getAttribute('identity');
+        if ($identity !== null) {
+            return $identity->getIdentifier();
+        }
+
+        return $this->getRequest()->getSession()->read('Auth.userId');
     }
 
     /**
@@ -79,6 +107,11 @@ class FilesController extends AppController
     {
         /** @var \CakeDC\Uppy\Model\Entity\File $file */
         $file = $this->Files->get($id);
+
+        $currentUserId = $this->getCurrentUserId();
+        if ($currentUserId === null || (string)$file->user_id !== (string)$currentUserId) {
+            throw new ForbiddenException();
+        }
 
         $presignedUrl = $this->storageAdapter->presignedUrl($file->path ?? '');
 
@@ -101,7 +134,21 @@ class FilesController extends AppController
 
         $files = [];
         $result = [];
+        $session = $this->getRequest()->getSession();
+        $pendingUploads = $session->read('Uppy.pendingUploads', []);
         foreach ($items as $item) {
+            $path = $item['path'] ?? null;
+            if (!$path || !array_key_exists($path, $pendingUploads)) {
+                $result['error'] = true;
+                $result['message'] = __('Invalid or unrecognized file path');
+                $this->set('result', $result);
+                $this->viewBuilder()->setOption('serialize', ['result']);
+
+                return;
+            }
+            // Consume the token (one-time use)
+            unset($pendingUploads[$path]);
+            $session->write('Uppy.pendingUploads', $pendingUploads);
             $tableAlias = isset($item['model']) ? (string)$item['model'] : '';
             if ($tableAlias === '') {
                 $result['error'] = true;
@@ -139,21 +186,47 @@ class FilesController extends AppController
                 $this->viewBuilder()->setOption('serialize', ['result']);
 
                 return;
+            // @phpstan-ignore-next-line DatabaseException is thrown by the ORM when the table cannot be described.
+            } catch (DatabaseException) {
+                $result['error'] = true;
+                $result['message'] = __('Could not retrieve record with id {0} from {1}', $foreignKey, $tableAlias);
+                $this->set('result', $result);
+                $this->viewBuilder()->setOption('serialize', ['result']);
+
+                return;
             }
+            // Issue #4 fix: verify the related record belongs to the current user
+            $model = Configure::readOrFail('Uppy.Props.usersModel');
+            $relation_key = Inflector::singularize(mb_strtolower($model)) . '_id';
+            $recordOwnerId = $register->{$relation_key};
+            $currentUserId = $this->getCurrentUserId();
+
+            if (!$currentUserId || (string)$recordOwnerId !== (string)$currentUserId) {
+                $result['error'] = true;
+                $result['message'] = __('You are not authorized to associate files with this record');
+                $this->set('result', $result);
+                $this->viewBuilder()->setOption('serialize', ['result']);
+
+                return;
+            }
+
             $file = $this->Files->newEntity($item);
             $file->filename = $item['filename'];
             $file->filesize = $item['filesize'];
             $file->extension = $item['extension'];
-            $model = Configure::readOrFail('Uppy.Props.usersModel');
-            $relation_key = Inflector::singularize(mb_strtolower($model)) . '_id';
-            $file->user_id = $register->{$relation_key};
+            $file->user_id = $recordOwnerId; // already verified above
             $file->model = $tableAlias;
+            $file->path = $path; // server-validated path (from session token)
             $files[] = $file;
         }
 
-        if ($this->Files->saveMany($files) !== false) {
+        $session->write('Uppy.pendingUploads', $pendingUploads);
+
+        $savedFiles = $this->Files->saveMany($files);
+        if ($savedFiles !== false) {
             $result['error'] = false;
             $result['message'] = __('The association has been be saved correctly');
+            $result['saved_file_ids'] = collection($savedFiles)->extract('id')->toArray();
         } else {
             $result['error'] = true;
             $result['message'] = __('The association to file could not be saved');
@@ -184,6 +257,12 @@ class FilesController extends AppController
     {
         $this->getRequest()->allowMethod(['post', 'delete']);
         $file = $this->Files->get($id);
+
+        $currentUserId = $this->getCurrentUserId();
+        if ($currentUserId === null || (string)$file->user_id !== (string)$currentUserId) {
+            throw new ForbiddenException();
+        }
+
         if ($this->Files->delete($file)) {
             $this->Flash->success(__('The file has been deleted.'));
         } else {
@@ -241,6 +320,12 @@ class FilesController extends AppController
             (string)$this->getRequest()->getData('filename'),
             $this->getRequest()->getData('prefix') ? (string)$this->getRequest()->getData('prefix') : null,
         );
+
+        // Store the generated key in session so save() can verify it was server-issued.
+        $session = $this->getRequest()->getSession();
+        $pending = $session->read('Uppy.pendingUploads', []);
+        $pending[$storageKey] = time();
+        $session->write('Uppy.pendingUploads', $pending);
 
         $presignedRequest = $this->storageAdapter->createPresignedRequest($storageKey, $contentType);
 
