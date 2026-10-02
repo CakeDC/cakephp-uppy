@@ -30,7 +30,7 @@ All drivers implement `CakeDC\Uppy\Storage\StorageAdapterInterface` and are inst
 
 ## Configuration file *config/uppy.php*
 
-By default, when debug is set to true the plugin will add a number of routes to your application under `/uppy/files` for uploading and viewing files. You should protect these endpoints if your application requires authentication to upload or manage files. Failing to do so would allow any visitor to *upload* files to your application.
+By default the plugin registers its routes under `/uppy` (upload `sign`/`save`, `delete`, `view` and the multipart endpoints) **regardless of `debug`**, so the API is reachable in production. Set `Uppy.routes` to `false` in `config/uppy.php` to disable them entirely. You should protect these endpoints if your application requires authentication to upload or manage files. Failing to do so would allow any visitor to *upload* files to your application.
 
 ### Default uppy config file
 
@@ -41,6 +41,9 @@ return [
     'Uppy' => [
         // Storage driver: 's3' | 'gcs' | 'r2'
         'driver' => env('UPPY_DRIVER', 's3'),
+
+        // Register the /uppy/* routes (default true)
+        'routes' => true,
 
         'Props' => [
             'usersModel' => 'Users',
@@ -139,9 +142,9 @@ In test environments, set `Uppy.S3.config.connection` or `Uppy.R2.config.connect
 - `/uppy/files/delete` — deletes the database record and, when `Uppy.Props.deleteFileStorage` is `true`, also removes the object from storage
 - `/uppy/files/view` — returns a signed URL for reading the file from the configured storage
 
-## Sample pages (debug only)
+## Sample pages
 
-These routes are only registered when `debug` is `true`:
+These example endpoints are registered together with the rest of the plugin routes (controlled by `Uppy.routes`, default on). They are intended for development/demo — disable `Uppy.routes` or protect them in production:
 
 - `/uppy/files` — list of files in the database with view/delete links
 - `/uppy/files/add` — example single-file upload to the configured storage

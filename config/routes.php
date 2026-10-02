@@ -15,7 +15,7 @@ use Cake\Routing\RouteBuilder;
 use Cake\Core\Configure;
 
 return static function (RouteBuilder $builder): void {
-    if (Configure::read('debug')) {
+    if (Configure::read('Uppy.routes', true)) {
         $builder->plugin(
             'CakeDC/Uppy',
             ['path' => '/uppy'],

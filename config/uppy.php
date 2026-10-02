@@ -39,6 +39,13 @@ return [
          */
         'MultipartThreshold' => 104857600,
 
+        /*
+         * Register the plugin routes under /uppy (sign, save, multipart, …).
+         * Defaults to true so the API works in production; set to false to
+         * disable the endpoints entirely. Protect them with authentication.
+         */
+        'routes' => true,
+
         'Props' => [
             'usersAliasModel' => 'Users',
             'usersModel' => 'Users',
