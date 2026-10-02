@@ -6,6 +6,7 @@ namespace CakeDC\Uppy\Test\TestCase\Model\Table;
 use ArrayObject;
 use Cake\Core\Configure;
 use Cake\Core\Plugin;
+use Cake\Database\Connection;
 use Cake\Datasource\ConnectionManager;
 use Cake\Event\Event;
 use Cake\ORM\Association\BelongsTo;
@@ -18,6 +19,18 @@ use CakeDC\Uppy\Storage\StorageAdapterInterface;
 class FilesTableTest extends TestCase
 {
     protected FilesTable $filesTable;
+
+    /**
+     * Return the test connection narrowed to the concrete Connection class,
+     * which exposes execute() (not part of ConnectionInterface).
+     */
+    protected function connection(): Connection
+    {
+        /** @var \Cake\Database\Connection $connection */
+        $connection = ConnectionManager::get('test');
+
+        return $connection;
+    }
 
     protected function setUp(): void
     {
@@ -47,7 +60,7 @@ class FilesTableTest extends TestCase
             ],
         ]);
 
-        $conn = ConnectionManager::get('test');
+        $conn = $this->connection();
         $conn->execute('DROP TABLE IF EXISTS uppy_files');
         $conn->execute("
             CREATE TABLE uppy_files (
@@ -80,14 +93,16 @@ class FilesTableTest extends TestCase
 
         TableRegistry::getTableLocator()->clear();
 
-        $this->filesTable = TableRegistry::getTableLocator()->get('CakeDC/Uppy.Files', [
+        /** @var \CakeDC\Uppy\Model\Table\FilesTable $filesTable */
+        $filesTable = TableRegistry::getTableLocator()->get('CakeDC/Uppy.Files', [
             'connection' => $conn,
         ]);
+        $this->filesTable = $filesTable;
     }
 
     protected function tearDown(): void
     {
-        $conn = ConnectionManager::get('test');
+        $conn = $this->connection();
         $conn->execute('DROP TABLE IF EXISTS uppy_files');
         $conn->execute('DROP TABLE IF EXISTS users');
         TableRegistry::getTableLocator()->clear();
@@ -104,7 +119,7 @@ class FilesTableTest extends TestCase
         TableRegistry::getTableLocator()->clear();
 
         $table = TableRegistry::getTableLocator()->get('CakeDC/Uppy.Files', [
-            'connection' => ConnectionManager::get('test'),
+            'connection' => $this->connection(),
         ]);
 
         $this->assertSame('uppy_files', $table->getTable());
@@ -178,7 +193,7 @@ class FilesTableTest extends TestCase
         $table->method('getStorageAdapter')->willReturn($adapter);
 
         $entity = new File(['path' => 'uuid-file.png', 'filename' => 'photo.png']);
-        $table->afterDelete(new Event('Model.afterDelete'), $entity, new ArrayObject());
+        $table->afterDelete(new Event('Model.afterDelete', $this->filesTable), $entity, new ArrayObject());
     }
 
     public function testAfterDeleteSkipsDeleteObjectWhenDisabled(): void
@@ -196,7 +211,7 @@ class FilesTableTest extends TestCase
         $table->method('getStorageAdapter')->willReturn($adapter);
 
         $entity = new File(['path' => 'uuid-file.png', 'filename' => 'photo.png']);
-        $table->afterDelete(new Event('Model.afterDelete'), $entity, new ArrayObject());
+        $table->afterDelete(new Event('Model.afterDelete', $this->filesTable), $entity, new ArrayObject());
     }
 
     public function testAfterDeleteHonorsLegacyDeleteFileS3Key(): void
@@ -217,14 +232,14 @@ class FilesTableTest extends TestCase
         $table->method('getStorageAdapter')->willReturn($adapter);
 
         $entity = new File(['path' => 'uuid-file.png', 'filename' => 'photo.png']);
-        $table->afterDelete(new Event('Model.afterDelete'), $entity, new ArrayObject());
+        $table->afterDelete(new Event('Model.afterDelete', $this->filesTable), $entity, new ArrayObject());
     }
 
     // ── findDatatable ─────────────────────────────────────────────────────────
 
     public function testFindDatatableAppliesUserIdFilter(): void
     {
-        $conn = ConnectionManager::get('test');
+        $conn = $this->connection();
         $conn->execute("INSERT INTO uppy_files (id,user_id,model,filename,filesize,mime_type,extension,hash,path,adapter,created,modified,metadata,foreign_key)
              VALUES ('file-1','user-uuid-1','Users','photo.png',1024,'image/png','png','abc','path1.png','s3','2024-01-15 10:00:00','2024-01-15 10:00:00',NULL,1)");
         $conn->execute("INSERT INTO uppy_files (id,user_id,model,filename,filesize,mime_type,extension,hash,path,adapter,created,modified,metadata,foreign_key)
@@ -238,7 +253,7 @@ class FilesTableTest extends TestCase
 
     public function testFindDatatableAppliesFilenameSearch(): void
     {
-        $conn = ConnectionManager::get('test');
+        $conn = $this->connection();
         $conn->execute("INSERT INTO uppy_files (id,user_id,model,filename,filesize,mime_type,extension,hash,path,adapter,created,modified,metadata,foreign_key)
              VALUES ('file-1','user-uuid-1','Users','photo.png',1024,'image/png','png','abc','path1.png','s3','2024-01-15 10:00:00','2024-01-15 10:00:00',NULL,1)");
         $conn->execute("INSERT INTO uppy_files (id,user_id,model,filename,filesize,mime_type,extension,hash,path,adapter,created,modified,metadata,foreign_key)
@@ -252,7 +267,7 @@ class FilesTableTest extends TestCase
 
     public function testFindDatatableFormatsResults(): void
     {
-        $conn = ConnectionManager::get('test');
+        $conn = $this->connection();
         $conn->execute("INSERT INTO uppy_files (id,user_id,model,filename,filesize,mime_type,extension,hash,path,adapter,created,modified,metadata,foreign_key)
              VALUES ('file-1','user-uuid-1','Users','report.pdf',1048576,'application/pdf','pdf','abc','uuid-report.pdf','s3','2024-03-20 12:00:00','2024-03-20 12:00:00',NULL,1)");
 

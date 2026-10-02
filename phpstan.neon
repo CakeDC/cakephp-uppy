@@ -1,5 +1,3 @@
-includes:
-    - phpstan-baseline.neon
 parameters:
 	level: 8
 	ignoreErrors:
@@ -11,3 +9,4 @@ parameters:
 		- config/aliases.php
 	paths:
 		- src/
+		- tests/

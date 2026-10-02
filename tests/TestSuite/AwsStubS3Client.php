@@ -18,15 +18,18 @@ class AwsStubS3Client extends S3Client
     {
     }
 
-    public function listObjectsV2(array $args = [])
+    public function listObjectsV2(array $args = []): mixed
     {
+        return null;
     }
 
-    public function putObject(array $args = [])
+    public function putObject(array $args = []): mixed
     {
+        return null;
     }
 
-    public function putObjectAcl(array $args = [])
+    public function putObjectAcl(array $args = []): mixed
     {
+        return null;
     }
 }

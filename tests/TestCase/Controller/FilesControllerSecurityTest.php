@@ -5,6 +5,7 @@ namespace CakeDC\Uppy\Test\TestCase\Controller;
 
 use App\Application;
 use Cake\Core\Configure;
+use Cake\Database\Connection;
 use Cake\Datasource\ConnectionManager;
 use Cake\ORM\TableRegistry;
 use Cake\TestSuite\IntegrationTestTrait;
@@ -14,6 +15,32 @@ use Cake\Utility\Text;
 class FilesControllerSecurityTest extends TestCase
 {
     use IntegrationTestTrait;
+
+    /**
+     * Return the test connection narrowed to the concrete Connection class,
+     * which exposes execute() (not part of ConnectionInterface).
+     */
+    protected function connection(): Connection
+    {
+        /** @var \Cake\Database\Connection $connection */
+        $connection = ConnectionManager::get('test');
+
+        return $connection;
+    }
+
+    /**
+     * Decode the JSON body of the last response.
+     *
+     * @return array<string, mixed>
+     */
+    protected function responseBody(): array
+    {
+        $this->assertNotNull($this->_response);
+        $decoded = json_decode((string)$this->_response->getBody(), true);
+        $this->assertIsArray($decoded);
+
+        return $decoded;
+    }
 
     protected function setUp(): void
     {
@@ -50,7 +77,7 @@ class FilesControllerSecurityTest extends TestCase
         ]);
 
         // In-memory SQLite tables for this test session
-        $conn = ConnectionManager::get('test');
+        $conn = $this->connection();
         $conn->execute('DROP TABLE IF EXISTS uppy_files');
         $conn->execute('
             CREATE TABLE uppy_files (
@@ -87,7 +114,7 @@ class FilesControllerSecurityTest extends TestCase
 
     protected function tearDown(): void
     {
-        $conn = ConnectionManager::get('test');
+        $conn = $this->connection();
         $conn->execute('DROP TABLE IF EXISTS uppy_files');
         $conn->execute('DROP TABLE IF EXISTS users');
         TableRegistry::getTableLocator()->clear();
@@ -108,7 +135,7 @@ class FilesControllerSecurityTest extends TestCase
             'Uppy.pendingUploads' => [$signedKey => time()],
         ]);
         $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
-        $this->post('/uppy/files/save', json_encode([
+        $this->post('/uppy/files/save', (string)json_encode([
             'items' => [[
                 'model' => 'NonExistentTable99',
                 'foreign_key' => 1,
@@ -121,7 +148,7 @@ class FilesControllerSecurityTest extends TestCase
         ]));
 
         $this->assertResponseOk();
-        $body = json_decode((string)$this->_response->getBody(), true);
+        $body = $this->responseBody();
         $this->assertTrue($body['result']['error']);
         $this->assertStringContainsString('NonExistentTable99', $body['result']['message']);
     }
@@ -131,7 +158,7 @@ class FilesControllerSecurityTest extends TestCase
         $this->loginAs(1);
 
         $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
-        $this->post('/uppy/files/save', json_encode([
+        $this->post('/uppy/files/save', (string)json_encode([
             'items' => [[
                 'model' => 'Users',
                 'foreign_key' => 1,
@@ -143,7 +170,7 @@ class FilesControllerSecurityTest extends TestCase
             ]],
         ]));
 
-        $body = json_decode((string)$this->_response->getBody(), true);
+        $body = $this->responseBody();
         $this->assertTrue($body['result']['error']);
         $this->assertStringContainsString('path', strtolower($body['result']['message']));
     }
@@ -157,7 +184,7 @@ class FilesControllerSecurityTest extends TestCase
         ]);
 
         $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
-        $this->post('/uppy/files/save', json_encode([
+        $this->post('/uppy/files/save', (string)json_encode([
             'items' => [[
                 'model' => 'Users',
                 'foreign_key' => 1,
@@ -169,7 +196,7 @@ class FilesControllerSecurityTest extends TestCase
             ]],
         ]));
 
-        $body = json_decode((string)$this->_response->getBody(), true);
+        $body = $this->responseBody();
         $this->assertFalse($body['result']['error']);
     }
 
@@ -179,13 +206,13 @@ class FilesControllerSecurityTest extends TestCase
         $key = 'alerrt/ResourceFiles/multipart-complete.png';
 
         $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
-        $this->post('/uppy/files/complete-multipart-upload', json_encode([
+        $this->post('/uppy/files/complete-multipart-upload', (string)json_encode([
             'uploadId' => 'dummy-upload-id',
             'key' => $key,
             'parts' => [['PartNumber' => 1, 'ETag' => '"abc"']],
         ]));
 
-        $complete = json_decode((string)$this->_response->getBody(), true);
+        $complete = $this->responseBody();
         $this->assertFalse($complete['error']);
         $this->assertSame($key, $complete['key']);
 
@@ -201,7 +228,7 @@ class FilesControllerSecurityTest extends TestCase
         // next request; forward the server-issued token to the save() request.
         $this->session(['Auth.userId' => 1, 'Uppy.pendingUploads' => $pending]);
         $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
-        $this->post('/uppy/files/save', json_encode([
+        $this->post('/uppy/files/save', (string)json_encode([
             'items' => [[
                 'model' => 'Users',
                 'foreign_key' => 1,
@@ -213,11 +240,11 @@ class FilesControllerSecurityTest extends TestCase
             ]],
         ]));
 
-        $save = json_decode((string)$this->_response->getBody(), true);
+        $save = $this->responseBody();
         $this->assertFalse($save['result']['error']);
         $this->assertCount(1, $save['result']['saved_file_ids']);
 
-        $rows = ConnectionManager::get('test')
+        $rows = $this->connection()
             ->execute('SELECT path FROM uppy_files WHERE path = :path', ['path' => $key])
             ->fetchAll('assoc');
         $this->assertNotEmpty($rows, 'The multipart file metadata should be persisted');
@@ -227,7 +254,7 @@ class FilesControllerSecurityTest extends TestCase
     {
         $signedKey = 'some-uuid-test.png';
 
-        $payload = json_encode([
+        $payload = (string)json_encode([
             'items' => [[
                 'model' => 'Users',
                 'foreign_key' => 1,
@@ -246,7 +273,7 @@ class FilesControllerSecurityTest extends TestCase
         ]);
         $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
         $this->post('/uppy/files/save', $payload);
-        $first = json_decode((string)$this->_response->getBody(), true);
+        $first = $this->responseBody();
         $this->assertFalse($first['result']['error'], 'First save should succeed');
 
         // Simulate the consumed state: clear pending uploads (token was used on first save)
@@ -255,7 +282,7 @@ class FilesControllerSecurityTest extends TestCase
         // Second save with same path — session token consumed, must be rejected
         $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
         $this->post('/uppy/files/save', $payload);
-        $second = json_decode((string)$this->_response->getBody(), true);
+        $second = $this->responseBody();
         $this->assertTrue($second['result']['error'], 'Second save with same path should fail');
     }
 
@@ -264,12 +291,12 @@ class FilesControllerSecurityTest extends TestCase
         $this->loginAs(1);
 
         $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
-        $this->post('/uppy/files/sign', json_encode([
+        $this->post('/uppy/files/sign', (string)json_encode([
             'filename' => 'photo.png',
             'contentType' => 'image/png',
         ]));
 
-        $body = json_decode((string)$this->_response->getBody(), true);
+        $body = $this->responseBody();
         $this->assertFalse($body['error']);
         $this->assertArrayHasKey('key', $body);
         $this->assertMatchesRegularExpression('/^[a-f0-9\-]+-photo-png$/', $body['key']);
@@ -328,7 +355,7 @@ class FilesControllerSecurityTest extends TestCase
         ]);
 
         $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
-        $this->post('/uppy/files/save', json_encode([
+        $this->post('/uppy/files/save', (string)json_encode([
             'items' => [[
                 'model' => 'Users',
                 'foreign_key' => 1, // user 1's record
@@ -340,7 +367,7 @@ class FilesControllerSecurityTest extends TestCase
             ]],
         ]));
 
-        $body = json_decode((string)$this->_response->getBody(), true);
+        $body = $this->responseBody();
         $this->assertTrue($body['result']['error']);
         $this->assertStringContainsString('not authorized', strtolower($body['result']['message']));
     }
@@ -354,7 +381,7 @@ class FilesControllerSecurityTest extends TestCase
         ]);
 
         $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
-        $this->post('/uppy/files/save', json_encode([
+        $this->post('/uppy/files/save', (string)json_encode([
             'items' => [[
                 'model' => 'Users',
                 'foreign_key' => 1,
@@ -369,10 +396,10 @@ class FilesControllerSecurityTest extends TestCase
         ]));
 
         $this->assertResponseOk();
-        $body = json_decode((string)$this->_response->getBody(), true);
+        $body = $this->responseBody();
         $this->assertFalse($body['result']['error']);
 
-        $row = ConnectionManager::get('test')
+        $row = $this->connection()
             ->execute('SELECT hash, metadata, path FROM uppy_files WHERE path = :path', ['path' => $signedKey])
             ->fetchAll('assoc');
 
@@ -392,7 +419,7 @@ class FilesControllerSecurityTest extends TestCase
 
         // First attempt: use a valid path token but an invalid model — should fail validation
         $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
-        $this->post('/uppy/files/save', json_encode([
+        $this->post('/uppy/files/save', (string)json_encode([
             'items' => [[
                 'model' => 'NonExistentModel99',
                 'foreign_key' => 1,
@@ -403,7 +430,7 @@ class FilesControllerSecurityTest extends TestCase
                 'path' => $signedKey,
             ]],
         ]));
-        $first = json_decode((string)$this->_response->getBody(), true);
+        $first = $this->responseBody();
         $this->assertTrue($first['result']['error'], 'First attempt must fail due to invalid model');
 
         // IntegrationTestTrait does not carry over controller-side session writes between requests —
@@ -414,7 +441,7 @@ class FilesControllerSecurityTest extends TestCase
         // Second attempt: use the SAME token with a valid payload
         // Must be rejected — the token should have been consumed even on error
         $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
-        $this->post('/uppy/files/save', json_encode([
+        $this->post('/uppy/files/save', (string)json_encode([
             'items' => [[
                 'model' => 'Users',
                 'foreign_key' => 1,
@@ -425,7 +452,7 @@ class FilesControllerSecurityTest extends TestCase
                 'path' => $signedKey,
             ]],
         ]));
-        $second = json_decode((string)$this->_response->getBody(), true);
+        $second = $this->responseBody();
         $this->assertTrue($second['result']['error'], 'Token must be invalidated even after a failed save');
         $this->assertStringContainsString('path', strtolower($second['result']['message']));
     }
@@ -444,7 +471,7 @@ class FilesControllerSecurityTest extends TestCase
     public function testDeleteBlocksUnauthenticatedUser(): void
     {
         $id = Text::uuid();
-        ConnectionManager::get('test')->execute(
+        $this->connection()->execute(
             'INSERT INTO uppy_files (id,user_id,model,filename,filesize,mime_type,extension,hash,path,adapter,created,modified,metadata,foreign_key)
              VALUES (:id,:user_id,:model,:filename,:filesize,:mime_type,:extension,:hash,:path,:adapter,:created,:modified,:metadata,:foreign_key)',
             ['id' => $id,'user_id' => null,'model' => 'Users','filename' => 'test.png','filesize' => 1024,'mime_type' => 'image/png','extension' => 'png','hash' => 'abc','path' => 'uuid-no-owner.png','adapter' => 's3','created' => '2024-01-01 00:00:00','modified' => '2024-01-01 00:00:00','metadata' => null,'foreign_key' => 1],
@@ -460,7 +487,7 @@ class FilesControllerSecurityTest extends TestCase
     {
         $this->loginAs(1);
         $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
-        $this->post('/uppy/files/sign', json_encode(['contentType' => 'image/png']));
+        $this->post('/uppy/files/sign', (string)json_encode(['contentType' => 'image/png']));
         $this->assertResponseCode(400);
     }
 
@@ -468,7 +495,7 @@ class FilesControllerSecurityTest extends TestCase
     {
         $this->loginAs(1);
         $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
-        $this->post('/uppy/files/sign', json_encode([
+        $this->post('/uppy/files/sign', (string)json_encode([
             'filename' => 'test.zip',
             'contentType' => 'application/zip',
         ]));
@@ -483,7 +510,7 @@ class FilesControllerSecurityTest extends TestCase
             'Uppy.pendingUploads' => [$signedKey => time()],
         ]);
         $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
-        $this->post('/uppy/files/save', json_encode([
+        $this->post('/uppy/files/save', (string)json_encode([
             'items' => [[
                 'foreign_key' => 1,
                 'filename' => 'test.png',
@@ -493,7 +520,7 @@ class FilesControllerSecurityTest extends TestCase
                 'path' => $signedKey,
             ]],
         ]));
-        $body = json_decode((string)$this->_response->getBody(), true);
+        $body = $this->responseBody();
         $this->assertTrue($body['result']['error']);
         $this->assertStringContainsString('model', strtolower($body['result']['message']));
     }
@@ -506,7 +533,7 @@ class FilesControllerSecurityTest extends TestCase
             'Uppy.pendingUploads' => [$signedKey => time()],
         ]);
         $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
-        $this->post('/uppy/files/save', json_encode([
+        $this->post('/uppy/files/save', (string)json_encode([
             'items' => [[
                 'model' => 'Users',
                 'filename' => 'test.png',
@@ -516,7 +543,7 @@ class FilesControllerSecurityTest extends TestCase
                 'path' => $signedKey,
             ]],
         ]));
-        $body = json_decode((string)$this->_response->getBody(), true);
+        $body = $this->responseBody();
         $this->assertTrue($body['result']['error']);
         $this->assertStringContainsString('foreign key', strtolower($body['result']['message']));
     }
@@ -529,7 +556,7 @@ class FilesControllerSecurityTest extends TestCase
             'Uppy.pendingUploads' => [$signedKey => time()],
         ]);
         $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
-        $this->post('/uppy/files/save', json_encode([
+        $this->post('/uppy/files/save', (string)json_encode([
             'items' => [[
                 'model' => 'Users',
                 'foreign_key' => 9999,
@@ -540,7 +567,7 @@ class FilesControllerSecurityTest extends TestCase
                 'path' => $signedKey,
             ]],
         ]));
-        $body = json_decode((string)$this->_response->getBody(), true);
+        $body = $this->responseBody();
         $this->assertTrue($body['result']['error']);
         $this->assertStringContainsString('9999', $body['result']['message']);
     }
@@ -553,7 +580,7 @@ class FilesControllerSecurityTest extends TestCase
             'Uppy.pendingUploads' => [$signedKey => time()],
         ]);
         $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
-        $this->post('/uppy/files/save', json_encode([
+        $this->post('/uppy/files/save', (string)json_encode([
             'items' => [[
                 'model' => 'Users',
                 'foreign_key' => 1,
@@ -564,7 +591,7 @@ class FilesControllerSecurityTest extends TestCase
                 'path' => $signedKey,
             ]],
         ]));
-        $body = json_decode((string)$this->_response->getBody(), true);
+        $body = $this->responseBody();
         $this->assertFalse($body['result']['error']);
         $this->assertArrayHasKey('saved_file_ids', $body['result']);
         $this->assertCount(1, $body['result']['saved_file_ids']);
@@ -579,7 +606,7 @@ class FilesControllerSecurityTest extends TestCase
             'Uppy.pendingUploads' => [$key1 => time(), $key2 => time()],
         ]);
         $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
-        $this->post('/uppy/files/save', json_encode([
+        $this->post('/uppy/files/save', (string)json_encode([
             'items' => [
                 [
                     'model' => 'Users',
@@ -601,7 +628,7 @@ class FilesControllerSecurityTest extends TestCase
                 ],
             ],
         ]));
-        $body = json_decode((string)$this->_response->getBody(), true);
+        $body = $this->responseBody();
         $this->assertFalse($body['result']['error']);
         $this->assertCount(2, $body['result']['saved_file_ids']);
     }
@@ -627,7 +654,7 @@ class FilesControllerSecurityTest extends TestCase
             'foreign_key' => 1,
         ], $overrides);
 
-        ConnectionManager::get('test')->execute(
+        $this->connection()->execute(
             'INSERT INTO uppy_files
                 (id,user_id,model,filename,filesize,mime_type,extension,hash,path,adapter,created,modified,metadata,foreign_key)
              VALUES
