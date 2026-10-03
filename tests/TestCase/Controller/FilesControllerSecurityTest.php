@@ -81,7 +81,7 @@ class FilesControllerSecurityTest extends TestCase
         $conn->execute('DROP TABLE IF EXISTS uppy_files');
         $conn->execute('
             CREATE TABLE uppy_files (
-                id          CHAR(36)     NOT NULL,
+                id          VARCHAR(36)     NOT NULL,
                 user_id     INTEGER          NULL,
                 model       VARCHAR(128)     NULL,
                 filename    VARCHAR(255)     NULL,
@@ -91,8 +91,8 @@ class FilesControllerSecurityTest extends TestCase
                 hash        VARCHAR(64)      NULL,
                 path        VARCHAR(255)     NULL,
                 adapter     VARCHAR(32)      NULL,
-                created     DATETIME         NULL,
-                modified    DATETIME         NULL,
+                created     TIMESTAMP        NULL,
+                modified    TIMESTAMP        NULL,
                 metadata    TEXT             NULL,
                 foreign_key INTEGER      NOT NULL,
                 PRIMARY KEY (id)

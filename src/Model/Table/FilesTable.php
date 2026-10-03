@@ -78,6 +78,14 @@ class FilesTable extends Table
         $this->setDisplayField('id');
         $this->setPrimaryKey('id');
 
+        // The migration declares `id`/`user_id` as uuid. Force the column type
+        // so the ORM always generates a UUID for the primary key, regardless of
+        // how the underlying driver introspects CHAR(36) (e.g. PostgreSQL would
+        // otherwise map it to string and skip id generation).
+        $schema = $this->getSchema();
+        $schema->setColumnType('id', 'uuid');
+        $schema->setColumnType('user_id', 'uuid');
+
         $this->addBehavior('Timestamp');
 
         $this->belongsTo(Configure::readOrFail('Uppy.Props.usersAliasModel'), [

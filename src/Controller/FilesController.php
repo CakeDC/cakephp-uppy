@@ -146,7 +146,7 @@ class FilesController extends AppController
         $files = [];
         $result = [];
         $session = $this->getRequest()->getSession();
-        $pendingUploads = $session->read('Uppy.pendingUploads', []);
+        $pendingUploads = (array)$session->read('Uppy.pendingUploads', []);
         foreach ($items as $item) {
             if (!is_array($item)) {
                 $result['error'] = true;
@@ -157,7 +157,7 @@ class FilesController extends AppController
                 return;
             }
             $path = isset($item['path']) && is_string($item['path']) ? $item['path'] : null;
-            if (!$path || !array_key_exists($path, $pendingUploads)) {
+            if ($path === null || $path === '' || !array_key_exists($path, $pendingUploads)) {
                 $result['error'] = true;
                 $result['message'] = __('Invalid or unrecognized file path');
                 $this->set('result', $result);
@@ -220,7 +220,7 @@ class FilesController extends AppController
             $recordOwnerId = $register->{$relation_key};
             $currentUserId = $this->getCurrentUserId();
 
-            if (!$currentUserId || (string)$recordOwnerId !== (string)$currentUserId) {
+            if ($currentUserId === null || (string)$recordOwnerId !== (string)$currentUserId) {
                 $result['error'] = true;
                 $result['message'] = __('You are not authorized to associate files with this record');
                 $this->set('result', $result);

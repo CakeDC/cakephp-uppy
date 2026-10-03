@@ -65,8 +65,8 @@ class FilesTableTest extends TestCase
         $conn->execute('DROP TABLE IF EXISTS uppy_files');
         $conn->execute("
             CREATE TABLE uppy_files (
-                id          CHAR(36)     NOT NULL,
-                user_id     CHAR(36)         NULL,
+                id          VARCHAR(36)     NOT NULL,
+                user_id     VARCHAR(36)         NULL,
                 model       VARCHAR(128)     NULL,
                 filename    VARCHAR(255)     NULL,
                 filesize    INTEGER          NULL,
@@ -75,8 +75,8 @@ class FilesTableTest extends TestCase
                 hash        VARCHAR(64)      NULL,
                 path        VARCHAR(255)     NULL,
                 adapter     VARCHAR(32)      NULL,
-                created     DATETIME         NULL,
-                modified    DATETIME         NULL,
+                created     TIMESTAMP        NULL,
+                modified    TIMESTAMP        NULL,
                 metadata    TEXT             NULL,
                 foreign_key INTEGER      NOT NULL,
                 PRIMARY KEY (id)
@@ -85,8 +85,8 @@ class FilesTableTest extends TestCase
         $conn->execute('DROP TABLE IF EXISTS users');
         $conn->execute("
             CREATE TABLE users (
-                id      CHAR(36) NOT NULL,
-                user_id CHAR(36)     NULL,
+                id      VARCHAR(36) NOT NULL,
+                user_id VARCHAR(36)     NULL,
                 PRIMARY KEY (id)
             )
         ");
