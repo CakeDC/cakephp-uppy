@@ -3,6 +3,19 @@ Changelog
 
 Releases for CakePHP 5.0
 ------------------------
+* 2.4.0
+    * New: multipart upload support for large files — `/uppy/files/create-multipart-upload`, `sign-part`, `complete-multipart-upload`, `abort-multipart-upload`; parts are uploaded directly to S3 (or R2), bypassing PHP memory/timeout limits
+    * New: `UppyHelper::getUploadConfig()` exposing `MaxFileSize`/`MultipartThreshold` to the browser via `window.UppyUploadConfig`
+    * New: `Uppy.routes` config key (default `true`) — `/uppy/*` routes are registered regardless of `debug`, so the API works in production; set to `false` to disable
+    * New: `S3Trait::_getS3Client()` backward-compatible alias (deprecated) delegating to `getS3Client()`
+    * New: PHPUnit test harness runs standalone with `failOn*` and deprecation-as-error; tests cover multipart, routing, table/entity, and storage adapters
+    * Change: minimum PHP raised to 8.2; `cakephp/cakephp` `^5.1`; declared previously-undeclared deps (`laminas/laminas-diactoros`, `psr/http-message`); `guzzlehttp/psr7` lower bound `^2.6.3`; PHPUnit `^11.5`
+    * Change: `deleteObject()` uses `doesObjectExistV2()` instead of the deprecated `doesObjectExist()`
+    * Fix: multipart uploads can be saved — `completeMultipartUpload()` now registers the object key as a server-issued path for `save()`, unblocking the documented multipart → save flow
+    * Chore: phpcs (CakePHP standard) and PHPStan level 8 clean over `src/` and `tests/`, no baseline
+    * Deprecated: `Uppy.Props.deleteFileS3` → use `deleteFileStorage`
+    * **Breaking changes**: see UPGRADE.md for the full migration guide
+
 * 2.3.0
     * New: `S3Trait::setPublicPermissions(string $key)` — sets `public-read` ACL on an S3 object (ported from 1.x)
     * New: `S3Trait::listFilesWithUrls(string $prefix, int $maxKeys)` — lists objects and appends a presigned GET URL to each (ported from 1.x)

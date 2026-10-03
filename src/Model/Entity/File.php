@@ -59,6 +59,6 @@ class File extends Entity
         'modified' => false,
         'metadata' => false,
         'foreign_key' => true,
-        'user' => true,
+        'user' => false,
     ];
 }

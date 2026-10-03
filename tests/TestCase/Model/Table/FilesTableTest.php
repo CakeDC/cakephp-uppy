@@ -15,6 +15,7 @@ use Cake\TestSuite\TestCase;
 use CakeDC\Uppy\Model\Entity\File;
 use CakeDC\Uppy\Model\Table\FilesTable;
 use CakeDC\Uppy\Storage\StorageAdapterInterface;
+use RuntimeException;
 
 class FilesTableTest extends TestCase
 {
@@ -224,6 +225,25 @@ class FilesTableTest extends TestCase
             ->method('deleteObject')
             ->with('uuid-file.png')
             ->willReturn(true);
+
+        $table = $this->getMockBuilder(FilesTable::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['getStorageAdapter'])
+            ->getMock();
+        $table->method('getStorageAdapter')->willReturn($adapter);
+
+        $entity = new File(['path' => 'uuid-file.png', 'filename' => 'photo.png']);
+        $table->afterDelete(new Event('Model.afterDelete', $this->filesTable), $entity, new ArrayObject());
+    }
+
+    public function testAfterDeleteSwallowsStorageErrors(): void
+    {
+        Configure::write('Uppy.Props.deleteFileStorage', true);
+
+        $adapter = $this->createMock(StorageAdapterInterface::class);
+        $adapter->expects($this->once())
+            ->method('deleteObject')
+            ->willThrowException(new RuntimeException('S3 unreachable'));
 
         $table = $this->getMockBuilder(FilesTable::class)
             ->disableOriginalConstructor()

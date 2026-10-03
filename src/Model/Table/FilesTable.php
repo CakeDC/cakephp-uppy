@@ -19,6 +19,7 @@ use Cake\Database\Expression\QueryExpression;
 use Cake\Event\EventInterface;
 use Cake\I18n\DateTime;
 use Cake\I18n\Number;
+use Cake\Log\Log;
 use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
@@ -26,6 +27,7 @@ use Cake\Validation\Validator;
 use CakeDC\Uppy\Model\Entity\File;
 use CakeDC\Uppy\Storage\AdapterFactory;
 use CakeDC\Uppy\Storage\StorageAdapterInterface;
+use Throwable;
 use function Cake\I18n\__;
 
 /**
@@ -189,8 +191,20 @@ class FilesTable extends Table
             'Uppy.Props.deleteFileStorage',
             Configure::read('Uppy.Props.deleteFileS3', false),
         );
-        if ($shouldDelete) {
+        if (!$shouldDelete) {
+            return;
+        }
+
+        try {
             $this->getStorageAdapter()->deleteObject($entity->path ?? '');
+        } catch (Throwable $exception) {
+            // The database row is already deleted at this point; a storage
+            // failure must not turn a successful delete into a 500. Log and move on.
+            Log::error(sprintf(
+                'Uppy: failed to delete storage object "%s": %s',
+                $entity->path ?? '',
+                $exception->getMessage(),
+            ));
         }
     }
 

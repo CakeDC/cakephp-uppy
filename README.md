@@ -11,8 +11,8 @@ The **Uppy** plugin covers the following features:
 Requirements
 ------------
 
-* CakePHP 5.0+
-* PHP 8.1+
+* CakePHP 5.1+
+* PHP 8.2+
 
 Configuration
 -------------
@@ -90,7 +90,7 @@ For documentation, as well as tutorials, see the [Docs](Docs/Home.md) directory 
 Support
 -------
 
-For bugs and feature requests, please use the [issues](https://github.com/CakeDC/cakephp-inertia/issues) section of this repository.
+For bugs and feature requests, please use the [issues](https://github.com/CakeDC/cakephp-uppy/issues) section of this repository.
 
 Commercial support is also available, [contact us](https://www.cakedc.com/contact) for more information.
 

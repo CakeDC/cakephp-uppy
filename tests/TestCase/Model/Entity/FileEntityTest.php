@@ -35,6 +35,15 @@ class FileEntityTest extends TestCase
         $this->assertNull($entity->metadata);
     }
 
+    public function testAssociatedUserIsNotMassAssignable(): void
+    {
+        $entity = new File([
+            'user' => ['id' => 'attacker-controlled-user'],
+        ], ['guard' => true]);
+
+        $this->assertNull($entity->user);
+    }
+
     public function testAccessibleFieldsAreMassAssignable(): void
     {
         $entity = new File([

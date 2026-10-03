@@ -282,6 +282,14 @@ The `delete` action has been added to `FormProtection`'s `unlockedActions` list 
 
 `Uppy.Props.deleteFileS3` is deprecated in favor of `Uppy.Props.deleteFileStorage`. The old key is still honored as a fallback when `deleteFileStorage` is not set. Update your `config/uppy.php`.
 
+### 14. `/uppy/*` routes are now always registered (configurable via `Uppy.routes`)
+
+**Type:** Behavior change — production endpoints
+
+Previously the plugin registered its `/uppy/*` routes only when `debug` was `true`, so they were missing in production. They are now registered regardless of `debug`; set `Uppy.routes` to `false` in `config/uppy.php` to disable them entirely.
+
+Because the endpoints are reachable in production, protect them with your application's authentication/authorization. See `Docs/Documentation/Configure.md`.
+
 ---
 
 ## Summary of required changes
@@ -299,3 +307,4 @@ The `delete` action has been added to `FormProtection`'s `unlockedActions` list 
 | 9 | PHP Entity | Replace mass-assignment of `path`, `adapter`, `hash`, etc. with explicit property assignment |
 | 10 | Config PHP | `Uppy.Props.deleteFileS3` deprecated → use `deleteFileStorage` |
 | 11 | PHP / Trait | If you extended `S3Trait`: use `getS3Client()`/`makeS3Client()` and the multipart adapter interface |
+| 12 | Config PHP | `/uppy/*` routes now registered in production → protect them or set `Uppy.routes` to `false` |

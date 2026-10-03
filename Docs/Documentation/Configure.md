@@ -140,10 +140,23 @@ In test environments, set `Uppy.S3.config.connection` or `Uppy.R2.config.connect
 
 ## Endpoints
 
+All endpoints are registered by default (see `Uppy.routes`); protect them with authentication in production.
+
+**Simple uploads:**
+
 - `/uppy/files/sign` — returns a signed URL for uploading a file directly from the browser to the configured storage
 - `/uppy/files/save` — persists the database record for a file just uploaded, with the correct storage path
 - `/uppy/files/delete` — deletes the database record and, when `Uppy.Props.deleteFileStorage` is `true`, also removes the object from storage
 - `/uppy/files/view` — returns a signed URL for reading the file from the configured storage
+
+**Multipart uploads** (for large files; S3 and R2 drivers):
+
+- `/uppy/files/create-multipart-upload` — starts a multipart upload and returns `uploadId` and object `key`
+- `/uppy/files/sign-part` — presigns a single part upload
+- `/uppy/files/complete-multipart-upload` — completes the upload with the part ETags; the resulting key is accepted by `/uppy/files/save`
+- `/uppy/files/abort-multipart-upload` — aborts an in-progress multipart upload
+
+See [Multipart Upload](../Multipart-Upload.md) for the full flow.
 
 ## Sample pages
 

@@ -132,12 +132,31 @@ class FilesController extends AppController
 
         $items = $this->getRequest()->getData('items');
 
+        if (!is_array($items) || $items === []) {
+            $result = [
+                'error' => true,
+                'message' => __('items must be a non-empty array'),
+            ];
+            $this->set('result', $result);
+            $this->viewBuilder()->setOption('serialize', ['result']);
+
+            return;
+        }
+
         $files = [];
         $result = [];
         $session = $this->getRequest()->getSession();
         $pendingUploads = $session->read('Uppy.pendingUploads', []);
         foreach ($items as $item) {
-            $path = $item['path'] ?? null;
+            if (!is_array($item)) {
+                $result['error'] = true;
+                $result['message'] = __('each item must be an object');
+                $this->set('result', $result);
+                $this->viewBuilder()->setOption('serialize', ['result']);
+
+                return;
+            }
+            $path = isset($item['path']) && is_string($item['path']) ? $item['path'] : null;
             if (!$path || !array_key_exists($path, $pendingUploads)) {
                 $result['error'] = true;
                 $result['message'] = __('Invalid or unrecognized file path');
@@ -210,10 +229,10 @@ class FilesController extends AppController
                 return;
             }
 
-            $file = $this->Files->newEntity($item);
-            $file->filename = $item['filename'];
-            $file->filesize = $item['filesize'];
-            $file->extension = $item['extension'];
+            $file = $this->Files->newEntity($item, ['associated' => []]);
+            $file->filename = isset($item['filename']) ? (string)$item['filename'] : null;
+            $file->filesize = isset($item['filesize']) ? (int)$item['filesize'] : null;
+            $file->extension = isset($item['extension']) ? (string)$item['extension'] : null;
             $file->user_id = $recordOwnerId; // already verified above
             $file->model = $tableAlias;
             $file->path = $path; // server-validated path (from session token)

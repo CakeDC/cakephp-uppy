@@ -483,6 +483,28 @@ class FilesControllerSecurityTest extends TestCase
         $this->assertResponseCode(403);
     }
 
+    public function testSaveRejectsEmptyItems(): void
+    {
+        $this->loginAs(1);
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+        $this->post('/uppy/files/save', (string)json_encode(['items' => []]));
+
+        $this->assertResponseOk();
+        $body = $this->responseBody();
+        $this->assertTrue($body['result']['error']);
+    }
+
+    public function testSaveRejectsNonArrayItem(): void
+    {
+        $this->loginAs(1);
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+        $this->post('/uppy/files/save', (string)json_encode(['items' => ['not-an-object']]));
+
+        $this->assertResponseOk();
+        $body = $this->responseBody();
+        $this->assertTrue($body['result']['error']);
+    }
+
     public function testSignRejectsMissingFilename(): void
     {
         $this->loginAs(1);
