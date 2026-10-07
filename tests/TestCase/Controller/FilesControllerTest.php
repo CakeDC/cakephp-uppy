@@ -15,6 +15,7 @@ namespace CakeDC\Uppy\Test\TestCase\Controller;
 use Cake\Core\Configure;
 use Cake\Http\Response;
 use Cake\Http\ServerRequest;
+use Cake\Http\Session;
 use Cake\TestSuite\TestCase;
 use CakeDC\Uppy\Controller\FilesController;
 
@@ -52,8 +53,12 @@ class FilesControllerTest extends TestCase
      */
     protected function invokeAction(string $action, array $payload): Response
     {
+        $session = new Session();
+        $session->write('Auth.userId', 1);
+
         $request = (new ServerRequest([
             'environment' => ['REQUEST_METHOD' => 'POST'],
+            'session' => $session,
         ]))->withParsedBody($payload);
 
         $controller = new FilesController($request);

@@ -110,6 +110,14 @@ class FilesControllerSecurityTest extends TestCase
         $conn->execute('INSERT INTO users (id, user_id) VALUES (2, 2)');
 
         TableRegistry::getTableLocator()->clear();
+
+        // The raw DDL above cannot express a uuid column portably across MySQL,
+        // SQLite and PostgreSQL. Declare it explicitly so the schema mirrors the
+        // real migration (where `id` is a uuid) and the ORM generates the key.
+        TableRegistry::getTableLocator()
+            ->get('CakeDC/Uppy.Files')
+            ->getSchema()
+            ->setColumnType('id', 'uuid');
     }
 
     protected function tearDown(): void
@@ -276,8 +284,15 @@ class FilesControllerSecurityTest extends TestCase
         $first = $this->responseBody();
         $this->assertFalse($first['result']['error'], 'First save should succeed');
 
-        // Simulate the consumed state: clear pending uploads (token was used on first save)
-        $this->session(['Uppy.pendingUploads' => []]);
+        // Forward the session exactly as the controller left it after the
+        // successful save: the one-time token must have been consumed.
+        $pending = (array)($_SESSION['Uppy']['pendingUploads'] ?? []);
+        $this->assertArrayNotHasKey(
+            $signedKey,
+            $pending,
+            'The token must be consumed by a successful save',
+        );
+        $this->session(['Auth.userId' => 1, 'Uppy.pendingUploads' => $pending]);
 
         // Second save with same path — session token consumed, must be rejected
         $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
@@ -409,7 +424,7 @@ class FilesControllerSecurityTest extends TestCase
         $this->assertSame($signedKey, $row[0]['path']); // path must be the server-validated key
     }
 
-    public function testSaveTokenCannotBeReusedAfterFailedValidation(): void
+    public function testSaveTokenIsPreservedAfterFailedValidation(): void
     {
         $signedKey = 'reuse-test.png';
         $this->session([
@@ -417,7 +432,7 @@ class FilesControllerSecurityTest extends TestCase
             'Uppy.pendingUploads' => [$signedKey => time()],
         ]);
 
-        // First attempt: use a valid path token but an invalid model — should fail validation
+        // First attempt: valid path token but an invalid model — should fail validation
         $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
         $this->post('/uppy/files/save', (string)json_encode([
             'items' => [[
@@ -433,13 +448,17 @@ class FilesControllerSecurityTest extends TestCase
         $first = $this->responseBody();
         $this->assertTrue($first['result']['error'], 'First attempt must fail due to invalid model');
 
-        // IntegrationTestTrait does not carry over controller-side session writes between requests —
-        // it re-seeds the session from $this->_session on every request. Mirror the consumed state
-        // manually so the second request sees an empty pendingUploads, exactly as the controller wrote.
-        $this->session(['Auth.userId' => 1, 'Uppy.pendingUploads' => []]);
+        // A failed save must not consume the token, so the uploaded object can
+        // be retried instead of being orphaned in storage.
+        $pending = (array)($_SESSION['Uppy']['pendingUploads'] ?? []);
+        $this->assertArrayHasKey(
+            $signedKey,
+            $pending,
+            'The token must be preserved after a failed save',
+        );
+        $this->session(['Auth.userId' => 1, 'Uppy.pendingUploads' => $pending]);
 
-        // Second attempt: use the SAME token with a valid payload
-        // Must be rejected — the token should have been consumed even on error
+        // Retry with the same token and a valid payload must succeed.
         $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
         $this->post('/uppy/files/save', (string)json_encode([
             'items' => [[
@@ -453,8 +472,7 @@ class FilesControllerSecurityTest extends TestCase
             ]],
         ]));
         $second = $this->responseBody();
-        $this->assertTrue($second['result']['error'], 'Token must be invalidated even after a failed save');
-        $this->assertStringContainsString('path', strtolower($second['result']['message']));
+        $this->assertFalse($second['result']['error'], 'Retry with the preserved token must succeed');
     }
 
     public function testViewBlocksUnauthenticatedUser(): void
@@ -481,6 +499,64 @@ class FilesControllerSecurityTest extends TestCase
         $this->delete('/uppy/files/delete/' . $id);
 
         $this->assertResponseCode(403);
+    }
+
+    public function testSignBlocksUnauthenticatedUser(): void
+    {
+        // No loginAs() — unauthenticated requests must not get upload URLs.
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+        $this->post('/uppy/files/sign', (string)json_encode([
+            'filename' => 'test.png',
+            'contentType' => 'image/png',
+        ]));
+
+        $this->assertResponseCode(403);
+    }
+
+    public function testMultipartBlocksUnauthenticatedUser(): void
+    {
+        // No loginAs() — unauthenticated requests must not start multipart uploads.
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+        $this->post('/uppy/files/create-multipart-upload', (string)json_encode([
+            'filename' => 'large.png',
+            'contentType' => 'image/png',
+        ]));
+
+        $this->assertResponseCode(403);
+    }
+
+    public function testIndexScopesToCurrentUser(): void
+    {
+        $this->insertFile(['user_id' => 1, 'filename' => 'mine.png']);
+        $this->insertFile(['user_id' => 2, 'filename' => 'theirs.png']);
+
+        $this->loginAs(1);
+        $this->get('/uppy/files');
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('mine.png');
+        $this->assertResponseNotContains('theirs.png');
+    }
+
+    public function testIndexBlocksUnauthenticatedUser(): void
+    {
+        $this->insertFile(['user_id' => 1, 'filename' => 'mine.png']);
+
+        // No loginAs() — unauthenticated
+        $this->get('/uppy/files');
+
+        $this->assertResponseCode(403);
+    }
+
+    public function testDemoAddPageRendersInDebug(): void
+    {
+        // Exercises the assets element, which reverse-routes the `sign` and
+        // `save` endpoints; this would fail if those routes were POST-only.
+        $this->get('/uppy/files/add');
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('/uppy/files/sign');
+        $this->assertResponseContains('/uppy/files/save');
     }
 
     public function testSaveRejectsEmptyItems(): void

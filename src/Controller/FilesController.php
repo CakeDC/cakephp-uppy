@@ -74,9 +74,10 @@ class FilesController extends AppController
     /**
      * Returns the current authenticated user's identifier.
      *
-     * Reads from the PSR-7 'identity' request attribute (set by
-     * cakephp/authentication middleware) with a fallback to the
-     * 'Auth.userId' session key for testing and legacy apps.
+     * Reads the PSR-7 'identity' request attribute set by the
+     * cakephp/authentication middleware. Falls back to the 'Auth.userId'
+     * session key, which is not written by the standard auth components and
+     * exists only for applications (and tests) that set it explicitly.
      *
      * @return string|int|null
      */
@@ -91,11 +92,30 @@ class FilesController extends AppController
     }
 
     /**
+     * Return the authenticated user's identifier or abort the request.
+     *
+     * @return string|int
+     * @throws \Cake\Http\Exception\ForbiddenException When no user is authenticated.
+     */
+    protected function requireCurrentUserId(): string|int
+    {
+        $currentUserId = $this->getCurrentUserId();
+        if ($currentUserId === null) {
+            throw new ForbiddenException();
+        }
+
+        return $currentUserId;
+    }
+
+    /**
      * Index method
+     *
+     * Lists only the files owned by the authenticated user.
      */
     public function index(): void
     {
-        $files = $this->paginate($this->Files);
+        $currentUserId = $this->requireCurrentUserId();
+        $files = $this->paginate($this->Files->find()->where(['user_id' => $currentUserId]));
 
         $this->set(compact('files'));
     }
@@ -146,7 +166,10 @@ class FilesController extends AppController
         $files = [];
         $result = [];
         $session = $this->getRequest()->getSession();
-        $pendingUploads = (array)$session->read('Uppy.pendingUploads', []);
+        // Working copy of the session tokens. They are only committed back to the
+        // session after a successful save, so a failed batch can be retried
+        // without orphaning the objects already uploaded to storage.
+        $remainingUploads = (array)$session->read('Uppy.pendingUploads', []);
         foreach ($items as $item) {
             if (!is_array($item)) {
                 $result['error'] = true;
@@ -157,7 +180,7 @@ class FilesController extends AppController
                 return;
             }
             $path = isset($item['path']) && is_string($item['path']) ? $item['path'] : null;
-            if ($path === null || $path === '' || !array_key_exists($path, $pendingUploads)) {
+            if ($path === null || $path === '' || !array_key_exists($path, $remainingUploads)) {
                 $result['error'] = true;
                 $result['message'] = __('Invalid or unrecognized file path');
                 $this->set('result', $result);
@@ -165,9 +188,8 @@ class FilesController extends AppController
 
                 return;
             }
-            // Consume the token (one-time use)
-            unset($pendingUploads[$path]);
-            $session->write('Uppy.pendingUploads', $pendingUploads);
+            // Mark the token as used for this batch (one-time use).
+            unset($remainingUploads[$path]);
             $tableAlias = isset($item['model']) ? (string)$item['model'] : '';
             if ($tableAlias === '') {
                 $result['error'] = true;
@@ -239,10 +261,10 @@ class FilesController extends AppController
             $files[] = $file;
         }
 
-        $session->write('Uppy.pendingUploads', $pendingUploads);
-
         $savedFiles = $this->Files->saveMany($files);
         if ($savedFiles !== false) {
+            // Commit the consumed one-time tokens only after a successful save.
+            $session->write('Uppy.pendingUploads', $remainingUploads);
             $result['error'] = false;
             $result['message'] = __('The association has been be saved correctly');
             $result['saved_file_ids'] = collection($savedFiles)->extract('id')->toArray();
@@ -301,6 +323,7 @@ class FilesController extends AppController
     public function sign(): Response
     {
         $this->getRequest()->allowMethod('post');
+        $this->requireCurrentUserId();
 
         $filename = $this->getRequest()->getData('filename');
         if ($filename === null || $filename === '') {
@@ -379,6 +402,7 @@ class FilesController extends AppController
     public function createMultipartUpload(): Response
     {
         $this->getRequest()->allowMethod('post');
+        $this->requireCurrentUserId();
 
         if (!$this->storageAdapter instanceof MultipartUploadAdapterInterface) {
             return $this->jsonResponse([
@@ -417,6 +441,7 @@ class FilesController extends AppController
     public function signPart(): Response
     {
         $this->getRequest()->allowMethod('post');
+        $this->requireCurrentUserId();
 
         if (!$this->storageAdapter instanceof MultipartUploadAdapterInterface) {
             return $this->jsonResponse([
@@ -468,6 +493,7 @@ class FilesController extends AppController
     public function completeMultipartUpload(): Response
     {
         $this->getRequest()->allowMethod('post');
+        $this->requireCurrentUserId();
 
         if (!$this->storageAdapter instanceof MultipartUploadAdapterInterface) {
             return $this->jsonResponse([
@@ -530,6 +556,7 @@ class FilesController extends AppController
     public function abortMultipartUpload(): Response
     {
         $this->getRequest()->allowMethod('post');
+        $this->requireCurrentUserId();
 
         if (!$this->storageAdapter instanceof MultipartUploadAdapterInterface) {
             return $this->jsonResponse([

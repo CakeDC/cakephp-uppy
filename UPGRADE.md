@@ -50,19 +50,20 @@ Any call to `Configure::read('Uppy.S3.contants.*')` or `Configure::write('Uppy.S
 
 ---
 
-### 3. Remove the `endpoint` key from `Uppy.S3.config`
+### 3. The `endpoint` key is still honored for S3-compatible storage
 
-**Type:** Breaking — PHP application config
+**Type:** Informational — PHP application config
 
-The `endpoint` key was never consumed by the AWS S3 adapter within this plugin and has been removed from the default configuration. If your application relied on this key being present in the merged config, remove it. To configure a custom S3-compatible endpoint, use the AWS SDK's standard `endpoint` option directly in your own `S3Client` instantiation or via a service-level configuration outside this plugin.
+The `endpoint` key was removed from the default `config/uppy.php` template, but it is **still fully supported**: the entire `Uppy.S3.config` array is passed to `Aws\S3\S3Client`, so any AWS SDK option placed there — including `endpoint` — is honored.
 
-**Before (`config/uppy.php` copy in your app):**
+If you use an S3-compatible store that needs a custom endpoint (MinIO, Ceph, LocalStack, etc.), **keep** the key in your `config/uppy.php`:
+
 ```php
 'config' => [
     'version'    => 'latest',
     'connection' => 'real',
     'region'     => env('S3_REGION', null),
-    'endpoint'   => env('S3_END_POINT', null),  // remove this line
+    'endpoint'   => env('S3_END_POINT', null),
     'credentials' => [
         'key'    => env('S3_KEY', null),
         'secret' => env('S3_SECRET', null),
@@ -70,18 +71,7 @@ The `endpoint` key was never consumed by the AWS S3 adapter within this plugin a
 ],
 ```
 
-**After:**
-```php
-'config' => [
-    'version'    => 'latest',
-    'connection' => 'real',
-    'region'     => env('S3_REGION', null),
-    'credentials' => [
-        'key'    => env('S3_KEY', null),
-        'secret' => env('S3_SECRET', null),
-    ],
-],
-```
+Only remove it if you connect to Amazon S3 using the default endpoint.
 
 ---
 
@@ -211,12 +201,12 @@ When saving a file, `save()` now looks up `Uppy.Props.usersModel` to determine t
 
 **Type:** Potentially breaking — applications using non-standard auth
 
-A new `protected` method `getCurrentUserId()` has been added to `FilesController`. It reads the current user's ID from:
+A new `protected` method `getCurrentUserId()` has been added to `FilesController`. It resolves the current user's ID from:
 
-1. The PSR-7 `identity` request attribute set by `cakephp/authentication` middleware (preferred).
-2. The `Auth.userId` session key (fallback for legacy CakeDC/Users setups and tests).
+1. The PSR-7 `identity` request attribute, set by `cakephp/authentication` middleware — **the supported source**.
+2. The `Auth.userId` session key, as a fallback. Be aware that **neither `cakephp/authentication`, `AuthComponent` nor CakeDC/Users write this key**: it exists only for applications (and the plugin's own tests) that set it explicitly.
 
-If your application uses a different authentication mechanism (e.g., API tokens, custom session keys), override this method:
+If your application does not use `cakephp/authentication` (or stores the identity under a different key), you **must** override this method. Otherwise `view()`, `delete()`, `save()`, `index()`, `sign()` and the multipart endpoints will reject every request with HTTP 403:
 
 ```php
 protected function getCurrentUserId(): string|int|null
@@ -282,13 +272,13 @@ The `delete` action has been added to `FormProtection`'s `unlockedActions` list 
 
 `Uppy.Props.deleteFileS3` is deprecated in favor of `Uppy.Props.deleteFileStorage`. The old key is still honored as a fallback when `deleteFileStorage` is not set. Update your `config/uppy.php`.
 
-### 14. `/uppy/*` routes are now always registered (configurable via `Uppy.routes`)
+### 14. `/uppy/*` routes: only the known endpoints, always registered
 
 **Type:** Behavior change — production endpoints
 
-Previously the plugin registered its `/uppy/*` routes only when `debug` was `true`, so they were missing in production. They are now registered regardless of `debug`; set `Uppy.routes` to `false` in `config/uppy.php` to disable them entirely.
+Previously the plugin registered its `/uppy/*` routes only when `debug` was `true`, so they were missing in production. They are now registered regardless of `debug`, but only for an explicit allow-list of endpoints (`sign`, `save`, the multipart endpoints, `view`, `delete`, `index`). The demo pages (`add`, `drag`) remain available only when `debug` is `true`. Set `Uppy.routes` to `false` in `config/uppy.php` to disable the endpoints entirely.
 
-Because the endpoints are reachable in production, protect them with your application's authentication/authorization. See `Docs/Documentation/Configure.md`.
+Because the endpoints are reachable in production, the controller now requires an authenticated user for `sign`, the multipart endpoints and `index` (which lists only the current user's files); `view`, `delete` and `save` keep their ownership checks. Protect the endpoints with your application's authentication/authorization as well. See `Docs/Documentation/Configure.md`.
 
 ---
 
@@ -298,7 +288,7 @@ Because the endpoints are reachable in production, protect them with your applic
 |---|------|----------------|
 | 1 | Migration | Run `bin/cake migrations migrate -p CakeDC/Uppy` |
 | 2 | Config PHP | Rename `Uppy.S3.contants` → `Uppy.S3.constants` |
-| 3 | Config PHP | Remove the `endpoint` key from `Uppy.S3.config` |
+| 3 | Config PHP | Keep `Uppy.S3.config.endpoint` if you use an S3-compatible store (MinIO, etc.) |
 | 4 | Config PHP | Remove `filter_var()` wrappers (cosmetic, not required) |
 | 5 | JavaScript | Read `data.key` from `sign()` response and store it |
 | 6 | JavaScript | Use stored `serverKey` as `path` in `save()` payload |

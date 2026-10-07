@@ -11,8 +11,8 @@ use Cake\Routing\RouteCollection;
 use Cake\TestSuite\TestCase;
 
 /**
- * Verifies the plugin routes are registered regardless of `debug`
- * (issue: production endpoints must be reachable with debug off).
+ * Verifies the plugin routes: the API is registered regardless of `debug`,
+ * the demo pages are debug-only, and only the known actions are routed.
  */
 class UppyRoutesTest extends TestCase
 {
@@ -42,6 +42,23 @@ class UppyRoutesTest extends TestCase
     }
 
     /**
+     * Parse a request against the plugin routes.
+     *
+     * @param string $url Request URL.
+     * @param string $method HTTP method.
+     * @return array<string, mixed>
+     */
+    protected function parse(string $url, string $method = 'GET'): array
+    {
+        return $this->collection()->parseRequest(
+            new ServerRequest([
+                'url' => $url,
+                'environment' => ['REQUEST_METHOD' => $method],
+            ]),
+        );
+    }
+
+    /**
      * @return void
      */
     public function testSignRouteIsRegisteredWithDebugOff(): void
@@ -49,13 +66,75 @@ class UppyRoutesTest extends TestCase
         Configure::write('debug', false);
         Configure::write('Uppy.routes', true);
 
-        $params = $this->collection()->parseRequest(
-            new ServerRequest(['url' => '/uppy/files/sign']),
-        );
+        $params = $this->parse('/uppy/files/sign', 'POST');
 
         $this->assertSame('CakeDC/Uppy', $params['plugin']);
         $this->assertSame('Files', $params['controller']);
         $this->assertSame('sign', $params['action']);
+    }
+
+    /**
+     * @return void
+     */
+    public function testMultipartRouteIsRegisteredWithDebugOff(): void
+    {
+        Configure::write('debug', false);
+        Configure::write('Uppy.routes', true);
+
+        $params = $this->parse('/uppy/files/create-multipart-upload', 'POST');
+
+        $this->assertSame('createMultipartUpload', $params['action']);
+    }
+
+    /**
+     * @return void
+     */
+    public function testViewRoutePassesId(): void
+    {
+        Configure::write('debug', false);
+        Configure::write('Uppy.routes', true);
+
+        $params = $this->parse('/uppy/files/view/abc-123', 'GET');
+
+        $this->assertSame('view', $params['action']);
+        $this->assertSame(['abc-123'], $params['pass']);
+    }
+
+    /**
+     * @return void
+     */
+    public function testDemoRoutesAreNotRegisteredWhenDebugOff(): void
+    {
+        Configure::write('debug', false);
+        Configure::write('Uppy.routes', true);
+
+        $this->expectException(MissingRouteException::class);
+        $this->parse('/uppy/files/add', 'GET');
+    }
+
+    /**
+     * @return void
+     */
+    public function testDemoRoutesAreRegisteredWhenDebugOn(): void
+    {
+        Configure::write('debug', true);
+        Configure::write('Uppy.routes', true);
+
+        $params = $this->parse('/uppy/files/add', 'GET');
+
+        $this->assertSame('add', $params['action']);
+    }
+
+    /**
+     * @return void
+     */
+    public function testUnknownActionIsNotRouted(): void
+    {
+        Configure::write('debug', false);
+        Configure::write('Uppy.routes', true);
+
+        $this->expectException(MissingRouteException::class);
+        $this->parse('/uppy/files/arbitrary-action', 'GET');
     }
 
     /**
@@ -67,8 +146,6 @@ class UppyRoutesTest extends TestCase
         Configure::write('Uppy.routes', false);
 
         $this->expectException(MissingRouteException::class);
-        $this->collection()->parseRequest(
-            new ServerRequest(['url' => '/uppy/files/sign']),
-        );
+        $this->parse('/uppy/files/sign', 'POST');
     }
 }

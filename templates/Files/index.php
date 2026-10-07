@@ -12,10 +12,13 @@ declare(strict_types=1);
  * @var \App\View\AppView $this
  * @var array<\CakeDC\Uppy\Model\Entity\File> $files
  */
+use Cake\Core\Configure;
 ?>
 <div class="files index content">
-    <?= $this->Html->link(__('Example Add New File'), ['action' => 'add'], ['class' => 'button']) ?>
-    <?= $this->Html->link(__('Example Drag & Drop New File'), ['action' => 'drag'], ['class' => 'button']) ?>
+    <?php if (Configure::read('debug')) : ?>
+        <?= $this->Html->link(__('Example Add New File'), ['action' => 'add'], ['class' => 'button']) ?>
+        <?= $this->Html->link(__('Example Drag & Drop New File'), ['action' => 'drag'], ['class' => 'button']) ?>
+    <?php endif; ?>
     <h3><?= __('Files') ?></h3>
     <div class="table-responsive">
         <table class="table align-middle gs-0 gy-5">

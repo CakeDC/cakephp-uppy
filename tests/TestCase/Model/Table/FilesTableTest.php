@@ -98,6 +98,10 @@ class FilesTableTest extends TestCase
         $filesTable = TableRegistry::getTableLocator()->get('CakeDC/Uppy.Files', [
             'connection' => $conn,
         ]);
+        // The raw DDL above cannot express a uuid column portably across MySQL,
+        // SQLite and PostgreSQL. Declare it explicitly so the schema mirrors the
+        // real migration (where `id` is a uuid) and the ORM generates the key.
+        $filesTable->getSchema()->setColumnType('id', 'uuid');
         $this->filesTable = $filesTable;
     }
 

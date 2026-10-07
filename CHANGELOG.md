@@ -12,6 +12,9 @@ Releases for CakePHP 5.0
     * Change: minimum PHP raised to 8.2; `cakephp/cakephp` `^5.1`; declared previously-undeclared deps (`laminas/laminas-diactoros`, `psr/http-message`); `guzzlehttp/psr7` lower bound `^2.6.3`; PHPUnit `^11.5`
     * Change: `deleteObject()` uses `doesObjectExistV2()` instead of the deprecated `doesObjectExist()`
     * Fix: multipart uploads can be saved — `completeMultipartUpload()` now registers the object key as a server-issued path for `save()`, unblocking the documented multipart → save flow
+    * Fix: only the known `/uppy/*` endpoints are routed (no catch-all fallbacks); the demo pages (`add`, `drag`) are registered only when `debug` is on
+    * Security: `sign`, the multipart endpoints and `index` now require an authenticated user; `index` lists only the current user's files
+    * Fix: upload tokens are consumed only after a successful save, so a failed batch can be retried without orphaning the uploaded objects
     * Chore: phpcs (CakePHP standard) and PHPStan level 8 clean over `src/` and `tests/`, no baseline
     * Deprecated: `Uppy.Props.deleteFileS3` → use `deleteFileStorage`
     * **Breaking changes**: see UPGRADE.md for the full migration guide

@@ -30,7 +30,7 @@ All drivers implement `CakeDC\Uppy\Storage\StorageAdapterInterface` and are inst
 
 ## Configuration file *config/uppy.php*
 
-By default the plugin registers its routes under `/uppy` (upload `sign`/`save`, `delete`, `view` and the multipart endpoints) **regardless of `debug`**, so the API is reachable in production. Set `Uppy.routes` to `false` in `config/uppy.php` to disable them entirely. You should protect these endpoints if your application requires authentication to upload or manage files. Failing to do so would allow any visitor to *upload* files to your application.
+By default the plugin registers only its known endpoints under `/uppy` (`sign`, `save`, the multipart endpoints, `view`, `delete` and `index`) **regardless of `debug`**, so the API is reachable in production. The demo pages (`add`, `drag`) are registered only when `debug` is on. Set `Uppy.routes` to `false` in `config/uppy.php` to disable the endpoints entirely. `sign`, the multipart endpoints and `index` require an authenticated user, and `index` lists only the current user's files. You should still protect these endpoints with your application's authentication/authorization.
 
 ### Default uppy config file
 
@@ -140,7 +140,7 @@ In test environments, set `Uppy.S3.config.connection` or `Uppy.R2.config.connect
 
 ## Endpoints
 
-All endpoints are registered by default (see `Uppy.routes`); protect them with authentication in production.
+All endpoints are registered by default (see `Uppy.routes`). `sign`, the multipart endpoints and `index` require an authenticated user; `view`, `delete` and `save` enforce ownership. Protect them with authentication in production as well.
 
 **Simple uploads:**
 
@@ -160,8 +160,8 @@ See [Multipart Upload](../Multipart-Upload.md) for the full flow.
 
 ## Sample pages
 
-These example endpoints are registered together with the rest of the plugin routes (controlled by `Uppy.routes`, default on). They are intended for development/demo — disable `Uppy.routes` or protect them in production:
+These example pages are registered **only when `debug` is on**. They are intended for development/demo:
 
-- `/uppy/files` — list of files in the database with view/delete links
+- `/uppy/files` — list of the current user's files with view/delete links
 - `/uppy/files/add` — example single-file upload to the configured storage
 - `/uppy/files/drag` — example multi-file drag-and-drop upload using Uppy Dashboard
