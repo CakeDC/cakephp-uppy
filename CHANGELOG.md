@@ -20,6 +20,7 @@ Releases for CakePHP 5.0
     * Fix: `/uppy/files` is the canonical index URL again (reverse routing no longer produces `/uppy/files/index`)
     * Chore: phpcs (CakePHP standard) and PHPStan level 8 clean over `src/` and `tests/`, no baseline
     * Deprecated: `Uppy.Props.deleteFileS3` → use `deleteFileStorage`
+    * Note: the 2.2.x and 2.3.x lines were branched before the 2.1.0 security fixes and do not include them; upgrade to 2.4.0 to pick them up
     * **Breaking changes**: see UPGRADE.md for the full migration guide
 
 * 2.3.0

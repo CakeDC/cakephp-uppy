@@ -188,12 +188,13 @@ All endpoints are registered by default (see `Uppy.routes`). `sign`, the multipa
 - `/uppy/files/complete-multipart-upload` — completes the upload with the part ETags; the resulting key is accepted by `/uppy/files/save`
 - `/uppy/files/abort-multipart-upload` — aborts an in-progress multipart upload
 
-See [Multipart Upload](../Multipart-Upload.md) for the full flow.
+See [Multipart Upload](Multipart-Upload.md) for the full flow.
 
 ## Sample pages
 
-These example pages are registered **only when `debug` is on**. They are intended for development/demo:
+The index page `/uppy/files` is **always routed** (see above); it lists the current user's files with view/delete links.
 
-- `/uppy/files` — list of the current user's files with view/delete links
+The following example pages are registered **only when `debug` is on**, and are intended for development/demo:
+
 - `/uppy/files/add` — example single-file upload to the configured storage
 - `/uppy/files/drag` — example multi-file drag-and-drop upload using Uppy Dashboard

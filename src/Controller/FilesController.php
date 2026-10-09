@@ -88,28 +88,46 @@ class FilesController extends AppController
      *    it explicitly.
      *
      * @return string|int|null
-     * @throws \UnexpectedValueException When the configured resolver returns a non-scalar value.
+     * @throws \UnexpectedValueException When the resolved value is not a string, an integer or null.
      */
     protected function getCurrentUserId(): string|int|null
     {
         $resolver = Configure::read('Uppy.currentUserIdResolver');
         if (is_callable($resolver)) {
-            $resolved = $resolver($this->getRequest());
-            if ($resolved !== null && !is_string($resolved) && !is_int($resolved)) {
-                throw new UnexpectedValueException(
-                    __('Uppy.currentUserIdResolver must return a string, an integer or null.'),
-                );
-            }
-
-            return $resolved;
+            return $this->normalizeUserId($resolver($this->getRequest()), 'Uppy.currentUserIdResolver');
         }
 
         $identity = $this->getRequest()->getAttribute('identity');
         if ($identity !== null) {
-            return $identity->getIdentifier();
+            return $this->normalizeUserId($identity->getIdentifier(), 'the authentication identity');
         }
 
-        return $this->getRequest()->getSession()->read('Auth.userId');
+        return $this->normalizeUserId(
+            $this->getRequest()->getSession()->read('Auth.userId'),
+            'the Auth.userId session key',
+        );
+    }
+
+    /**
+     * Validate a resolved user id.
+     *
+     * Guards against malformed session/identity values so a misconfiguration
+     * surfaces as a clear exception instead of an opaque TypeError.
+     *
+     * @param mixed $value Resolved value.
+     * @param string $source Human-readable source, used in the error message.
+     * @return string|int|null
+     * @throws \UnexpectedValueException When the value is not a string, an integer or null.
+     */
+    private function normalizeUserId(mixed $value, string $source): string|int|null
+    {
+        if ($value === null || is_string($value) || is_int($value)) {
+            return $value;
+        }
+
+        throw new UnexpectedValueException(
+            __('The user id from {0} must be a string, an integer or null.', $source),
+        );
     }
 
     /**

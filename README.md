@@ -50,7 +50,7 @@ return [
 ```
 
 **Configuration Options:**
-- `routes` - When `true` (default) the plugin registers its `/uppy/*` routes (upload, save, view, delete and multipart), available in production regardless of `debug`; set to `false` to disable them. Protect them with authentication.
+- `routes` - When `true` (default) the plugin registers only its known `/uppy/*` endpoints (`sign`, `save`, the multipart endpoints, `view`, `delete`, `index`), available in production regardless of `debug`; the demo pages (`add`, `drag`) are registered only when `debug` is on. Set to `false` to disable the endpoints entirely. `sign`, the multipart endpoints and `index` require an authenticated user (HTTP 401 otherwise); `view`, `delete` and `save` enforce ownership. Protect them with authentication.
 - `MaxFileSize` - Optional maximum upload size in bytes; when set, `filesize` in sign/create requests is validated server-side (`null` = no limit)
 - `MultipartThreshold` - File size in bytes above which the client should use multipart upload (default 100 MiB); exposed to the browser via `UppyHelper::getUploadConfig()` and `window.UppyUploadConfig`
 - `AcceptedContentTypes` - List of MIME types allowed for storage in S3 and saved in database
@@ -63,7 +63,7 @@ return [
 Endpoints
 ---------
 
-The plugin provides the following API endpoints (registered by default — see `Uppy.routes`; protect them with authentication):
+The plugin provides the following API endpoints (registered by default — see `Uppy.routes`). `sign`, the multipart endpoints and `index` require an authenticated user (HTTP 401 otherwise); `view`, `delete` and `save` enforce ownership. Protect them with authentication in production:
 
 **Simple Uploads:**
 - `/uppy/files/sign` - Generate presigned PUT URL for direct browser-to-S3 upload (small files)

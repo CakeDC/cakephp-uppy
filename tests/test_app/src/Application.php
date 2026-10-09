@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App;
 
+use App\Middleware\TestIdentityMiddleware;
 use Cake\Core\Configure;
 use Cake\Http\BaseApplication;
 use Cake\Http\Middleware\BodyParserMiddleware;
@@ -39,6 +40,7 @@ class Application extends BaseApplication
     {
         $middlewareQueue
             ->add(new BodyParserMiddleware())
+            ->add(new TestIdentityMiddleware())
             ->add(new RoutingMiddleware($this));
 
         return $middlewareQueue;

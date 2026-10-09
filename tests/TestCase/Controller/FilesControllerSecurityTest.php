@@ -12,6 +12,8 @@ use Cake\ORM\TableRegistry;
 use Cake\TestSuite\IntegrationTestTrait;
 use Cake\TestSuite\TestCase;
 use Cake\Utility\Text;
+use CakeDC\Uppy\Model\Table\FilesTable;
+use PHPUnit\Framework\Attributes\DataProvider;
 use UnexpectedValueException;
 
 class FilesControllerSecurityTest extends TestCase
@@ -478,6 +480,47 @@ class FilesControllerSecurityTest extends TestCase
         $this->assertFalse($second['result']['error'], 'Retry with the preserved token must succeed');
     }
 
+    public function testSaveTokenIsPreservedWhenSaveManyFails(): void
+    {
+        $signedKey = 'save-fail.png';
+        $this->session([
+            'Auth.userId' => 1,
+            'Uppy.pendingUploads' => [$signedKey => time()],
+        ]);
+
+        // Force the saveMany() === false branch (e.g. a DB-level persistence
+        // failure) to verify the token is not consumed.
+        $table = $this->getMockBuilder(FilesTable::class)
+            ->onlyMethods(['saveMany'])
+            ->getMock();
+        $table->method('saveMany')->willReturn(false);
+        $this->getTableLocator()->set('CakeDC/Uppy.Files', $table);
+
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+        $this->post('/uppy/files/save', (string)json_encode([
+            'items' => [[
+                'model' => 'Users',
+                'foreign_key' => 1,
+                'filename' => 'file.png',
+                'filesize' => 100,
+                'extension' => 'png',
+                'mime_type' => 'image/png',
+                'path' => $signedKey,
+            ]],
+        ]));
+
+        $body = $this->responseBody();
+        $this->assertTrue($body['result']['error'], 'A failed saveMany must be reported');
+
+        // The token must survive a persistence failure so the upload can be retried.
+        $pending = (array)($_SESSION['Uppy']['pendingUploads'] ?? []);
+        $this->assertArrayHasKey(
+            $signedKey,
+            $pending,
+            'The token must be preserved when saveMany() fails',
+        );
+    }
+
     public function testViewBlocksUnauthenticatedUser(): void
     {
         // Insert a file with no owner (user_id = NULL)
@@ -536,6 +579,31 @@ class FilesControllerSecurityTest extends TestCase
         $this->assertSame(401, $body['code']);
     }
 
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function multipartEndpointProvider(): array
+    {
+        return [
+            'sign-part' => ['sign-part'],
+            'complete-multipart-upload' => ['complete-multipart-upload'],
+            'abort-multipart-upload' => ['abort-multipart-upload'],
+        ];
+    }
+
+    #[DataProvider('multipartEndpointProvider')]
+    public function testMultipartEndpointBlocksUnauthenticatedUser(string $endpoint): void
+    {
+        // No loginAs() — unauthenticated requests must not use multipart endpoints.
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+        $this->post('/uppy/files/' . $endpoint, (string)json_encode([]));
+
+        $this->assertResponseCode(401);
+        $body = $this->responseBody();
+        $this->assertTrue($body['error']);
+        $this->assertSame(401, $body['code']);
+    }
+
     public function testIndexScopesToCurrentUser(): void
     {
         $this->insertFile(['user_id' => 1, 'filename' => 'mine.png']);
@@ -558,6 +626,23 @@ class FilesControllerSecurityTest extends TestCase
 
         // Unauthenticated (no user at all) is 401, not 403.
         $this->assertResponseCode(401);
+    }
+
+    public function testSignUsesIdentityRequestAttribute(): void
+    {
+        // No loginAs(): the identity request attribute is the supported source.
+        $this->configRequest(['headers' => [
+            'Accept' => 'application/json',
+            'Content-Type' => 'application/json',
+            'X-Test-Identity' => '1',
+        ]]);
+        $this->post('/uppy/files/sign', (string)json_encode([
+            'filename' => 'identity.png',
+            'contentType' => 'image/png',
+        ]));
+
+        $this->assertResponseOk();
+        $this->assertFalse($this->responseBody()['error']);
     }
 
     public function testSignUsesConfiguredCurrentUserIdResolver(): void
@@ -613,6 +698,20 @@ class FilesControllerSecurityTest extends TestCase
 
         $this->assertResponseCode(401);
         $this->assertSame(401, $this->responseBody()['code']);
+    }
+
+    public function testNonScalarSessionUserIdIsRejected(): void
+    {
+        // A malformed session value must fail loudly instead of raising a TypeError.
+        $this->session(['Auth.userId' => ['not', 'scalar']]);
+
+        $this->disableErrorHandlerMiddleware();
+        $this->expectException(UnexpectedValueException::class);
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+        $this->post('/uppy/files/sign', (string)json_encode([
+            'filename' => 'test.png',
+            'contentType' => 'image/png',
+        ]));
     }
 
     public function testCurrentUserIdResolverRejectsNonScalar(): void

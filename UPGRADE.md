@@ -189,7 +189,7 @@ When saving a file, `save()` now looks up `Uppy.Props.usersModel` to determine t
 2. The PSR-7 `identity` request attribute, set by `cakephp/authentication` middleware — **the supported source**.
 3. The `Auth.userId` session key, as a fallback. Be aware that **neither `cakephp/authentication`, `AuthComponent` nor CakeDC/Users write this key**: it exists only for applications (and the plugin's own tests) that set it explicitly.
 
-If your application does not use `cakephp/authentication` (or stores the identity under a different key), set the resolver in `config/uppy.php`. Otherwise `view()`, `delete()`, `save()`, `index()`, `sign()` and the multipart endpoints will reject every request with HTTP 403:
+If your application does not use `cakephp/authentication` (or stores the identity under a different key), set the resolver in `config/uppy.php`. Otherwise every request is rejected: `sign`, the multipart endpoints and `index` return HTTP **401**, `view()`/`delete()` return HTTP **401** (no user) or **403** (not the owner), and `save()` returns a JSON error with HTTP **200** (`{ "error": true, "message": "You are not authorized to associate files with this record" }`):
 
 ```php
 // config/uppy.php
