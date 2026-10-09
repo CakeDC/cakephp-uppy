@@ -15,6 +15,9 @@ Releases for CakePHP 5.0
     * Fix: only the known `/uppy/*` endpoints are routed (no catch-all fallbacks); the demo pages (`add`, `drag`) are registered only when `debug` is on
     * Security: `sign`, the multipart endpoints and `index` now require an authenticated user; `index` lists only the current user's files
     * Fix: upload tokens are consumed only after a successful save, so a failed batch can be retried without orphaning the uploaded objects
+    * New: `Uppy.currentUserIdResolver` config key — resolve the current user id for ownership checks in applications with non-standard auth, without subclassing `FilesController`
+    * Change: unauthenticated requests to `sign`, the multipart endpoints and `index` now return HTTP 401 (the JSON endpoints use the plugin's `{error, code, message}` envelope) instead of 403
+    * Fix: `/uppy/files` is the canonical index URL again (reverse routing no longer produces `/uppy/files/index`)
     * Chore: phpcs (CakePHP standard) and PHPStan level 8 clean over `src/` and `tests/`, no baseline
     * Deprecated: `Uppy.Props.deleteFileS3` → use `deleteFileStorage`
     * **Breaking changes**: see UPGRADE.md for the full migration guide

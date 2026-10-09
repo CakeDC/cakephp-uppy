@@ -358,8 +358,9 @@ class FilesControllerSecurityTest extends TestCase
 
         $this->delete('/uppy/files/delete/' . $fileId);
 
-        // After delete, redirects to index
+        // After delete, redirects to the canonical index URL.
         $this->assertResponseCode(302);
+        $this->assertRedirect('/uppy/files');
     }
 
     public function testSaveRejectsWhenForeignKeyBelongsToAnotherUser(): void
@@ -485,7 +486,8 @@ class FilesControllerSecurityTest extends TestCase
         // Do NOT call loginAs() — simulate unauthenticated request
         $this->get('/uppy/files/view/' . $fileId);
 
-        $this->assertResponseCode(403);
+        // Unauthenticated (no user at all) is 401, not 403.
+        $this->assertResponseCode(401);
     }
 
     public function testDeleteBlocksUnauthenticatedUser(): void
@@ -500,7 +502,8 @@ class FilesControllerSecurityTest extends TestCase
         // No loginAs() — unauthenticated
         $this->delete('/uppy/files/delete/' . $id);
 
-        $this->assertResponseCode(403);
+        // Unauthenticated (no user at all) is 401, not 403.
+        $this->assertResponseCode(401);
     }
 
     public function testSignBlocksUnauthenticatedUser(): void
@@ -512,7 +515,10 @@ class FilesControllerSecurityTest extends TestCase
             'contentType' => 'image/png',
         ]));
 
-        $this->assertResponseCode(403);
+        $this->assertResponseCode(401);
+        $body = $this->responseBody();
+        $this->assertTrue($body['error']);
+        $this->assertSame(401, $body['code']);
     }
 
     public function testMultipartBlocksUnauthenticatedUser(): void
@@ -524,7 +530,10 @@ class FilesControllerSecurityTest extends TestCase
             'contentType' => 'image/png',
         ]));
 
-        $this->assertResponseCode(403);
+        $this->assertResponseCode(401);
+        $body = $this->responseBody();
+        $this->assertTrue($body['error']);
+        $this->assertSame(401, $body['code']);
     }
 
     public function testIndexScopesToCurrentUser(): void
@@ -547,7 +556,8 @@ class FilesControllerSecurityTest extends TestCase
         // No loginAs() — unauthenticated
         $this->get('/uppy/files');
 
-        $this->assertResponseCode(403);
+        // Unauthenticated (no user at all) is 401, not 403.
+        $this->assertResponseCode(401);
     }
 
     public function testSignUsesConfiguredCurrentUserIdResolver(): void
@@ -601,7 +611,8 @@ class FilesControllerSecurityTest extends TestCase
             'contentType' => 'image/png',
         ]));
 
-        $this->assertResponseCode(403);
+        $this->assertResponseCode(401);
+        $this->assertSame(401, $this->responseBody()['code']);
     }
 
     public function testCurrentUserIdResolverRejectsNonScalar(): void

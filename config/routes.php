@@ -48,8 +48,10 @@ return static function (RouteBuilder $builder): void {
             // keeps URL generation working for `['action' => 'view', $id]`.
             $routes->connect('/files/view/*', ['controller' => 'Files', 'action' => 'view']);
             $routes->connect('/files/delete/*', ['controller' => 'Files', 'action' => 'delete']);
-            $routes->connect('/files/index', ['controller' => 'Files', 'action' => 'index']);
+            // `/files` is connected first so reverse routing of
+            // `['action' => 'index']` yields `/uppy/files` (the canonical URL).
             $routes->connect('/files', ['controller' => 'Files', 'action' => 'index']);
+            $routes->connect('/files/index', ['controller' => 'Files', 'action' => 'index']);
 
             // Demo pages are only exposed when debug is on.
             if (Configure::read('debug')) {

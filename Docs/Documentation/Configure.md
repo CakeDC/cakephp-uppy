@@ -149,6 +149,8 @@ In test environments, set `Uppy.S3.config.connection` or `Uppy.R2.config.connect
 2. The `identity` request attribute set by `cakephp/authentication` — the supported source.
 3. The `Auth.userId` session key — **not** written by `cakephp/authentication`, `AuthComponent` or CakeDC/Users; it exists only for applications (and the plugin's tests) that set it explicitly.
 
+Requests without an authenticated user get HTTP **401** (the JSON endpoints return the plugin's `{error, code, message}` envelope); an authenticated user who does not own the record gets HTTP **403**.
+
 Applications using a non-standard auth mechanism should set the resolver instead of subclassing `FilesController` — the plugin routes (`/uppy/files/*`) and the bundled `assets.php` always target `CakeDC/Uppy.Files`, so a subclass is never invoked for them.
 
 ```php

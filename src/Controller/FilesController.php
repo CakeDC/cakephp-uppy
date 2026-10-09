@@ -17,6 +17,7 @@ use Cake\Core\Configure;
 use Cake\Database\Exception\DatabaseException;
 use Cake\Datasource\Exception\RecordNotFoundException;
 use Cake\Http\Exception\ForbiddenException;
+use Cake\Http\Exception\UnauthorizedException;
 use Cake\Http\Response;
 use Cake\ORM\Exception\MissingTableClassException;
 use Cake\Utility\Inflector;
@@ -115,16 +116,37 @@ class FilesController extends AppController
      * Return the authenticated user's identifier or abort the request.
      *
      * @return string|int
-     * @throws \Cake\Http\Exception\ForbiddenException When no user is authenticated.
+     * @throws \Cake\Http\Exception\UnauthorizedException When no user is authenticated.
      */
     protected function requireCurrentUserId(): string|int
     {
         $currentUserId = $this->getCurrentUserId();
         if ($currentUserId === null) {
-            throw new ForbiddenException();
+            throw new UnauthorizedException();
         }
 
         return $currentUserId;
+    }
+
+    /**
+     * Return a JSON 401 envelope when there is no authenticated user.
+     *
+     * The JSON endpoints use the plugin's response envelope instead of the
+     * framework's error format so the bundled JavaScript can report it.
+     *
+     * @return \Cake\Http\Response|null Response to send, or null when authenticated.
+     */
+    protected function unauthenticatedJsonResponse(): ?Response
+    {
+        if ($this->getCurrentUserId() !== null) {
+            return null;
+        }
+
+        return $this->jsonResponse([
+            'error' => true,
+            'code' => 401,
+            'message' => __('Authentication is required.'),
+        ], 401);
     }
 
     /**
@@ -149,7 +171,10 @@ class FilesController extends AppController
         $file = $this->Files->get($id);
 
         $currentUserId = $this->getCurrentUserId();
-        if ($currentUserId === null || (string)$file->user_id !== (string)$currentUserId) {
+        if ($currentUserId === null) {
+            throw new UnauthorizedException();
+        }
+        if ((string)$file->user_id !== (string)$currentUserId) {
             throw new ForbiddenException();
         }
 
@@ -320,7 +345,10 @@ class FilesController extends AppController
         $file = $this->Files->get($id);
 
         $currentUserId = $this->getCurrentUserId();
-        if ($currentUserId === null || (string)$file->user_id !== (string)$currentUserId) {
+        if ($currentUserId === null) {
+            throw new UnauthorizedException();
+        }
+        if ((string)$file->user_id !== (string)$currentUserId) {
             throw new ForbiddenException();
         }
 
@@ -343,7 +371,10 @@ class FilesController extends AppController
     public function sign(): Response
     {
         $this->getRequest()->allowMethod('post');
-        $this->requireCurrentUserId();
+        $unauthenticated = $this->unauthenticatedJsonResponse();
+        if ($unauthenticated !== null) {
+            return $unauthenticated;
+        }
 
         $filename = $this->getRequest()->getData('filename');
         if ($filename === null || $filename === '') {
@@ -422,7 +453,10 @@ class FilesController extends AppController
     public function createMultipartUpload(): Response
     {
         $this->getRequest()->allowMethod('post');
-        $this->requireCurrentUserId();
+        $unauthenticated = $this->unauthenticatedJsonResponse();
+        if ($unauthenticated !== null) {
+            return $unauthenticated;
+        }
 
         if (!$this->storageAdapter instanceof MultipartUploadAdapterInterface) {
             return $this->jsonResponse([
@@ -461,7 +495,10 @@ class FilesController extends AppController
     public function signPart(): Response
     {
         $this->getRequest()->allowMethod('post');
-        $this->requireCurrentUserId();
+        $unauthenticated = $this->unauthenticatedJsonResponse();
+        if ($unauthenticated !== null) {
+            return $unauthenticated;
+        }
 
         if (!$this->storageAdapter instanceof MultipartUploadAdapterInterface) {
             return $this->jsonResponse([
@@ -513,7 +550,10 @@ class FilesController extends AppController
     public function completeMultipartUpload(): Response
     {
         $this->getRequest()->allowMethod('post');
-        $this->requireCurrentUserId();
+        $unauthenticated = $this->unauthenticatedJsonResponse();
+        if ($unauthenticated !== null) {
+            return $unauthenticated;
+        }
 
         if (!$this->storageAdapter instanceof MultipartUploadAdapterInterface) {
             return $this->jsonResponse([
@@ -576,7 +616,10 @@ class FilesController extends AppController
     public function abortMultipartUpload(): Response
     {
         $this->getRequest()->allowMethod('post');
-        $this->requireCurrentUserId();
+        $unauthenticated = $this->unauthenticatedJsonResponse();
+        if ($unauthenticated !== null) {
+            return $unauthenticated;
+        }
 
         if (!$this->storageAdapter instanceof MultipartUploadAdapterInterface) {
             return $this->jsonResponse([
