@@ -46,6 +46,22 @@ return [
          */
         'routes' => true,
 
+        /*
+         * Resolves the current user id used by the ownership checks.
+         * When null, the plugin reads the `identity` request attribute set by
+         * cakephp/authentication and falls back to the `Auth.userId` session
+         * key. Set a callable to support non-standard auth without subclassing
+         * FilesController (the plugin routes always target CakeDC/Uppy.Files,
+         * so a subclass is never invoked for them):
+         *
+         *   'currentUserIdResolver' => fn(\Cake\Http\ServerRequest $request) =>
+         *       $request->getSession()->read('MyCustomAuth.userId'),
+         *
+         * The callable must return a string, an integer or null. When set, it
+         * is authoritative (null means "no user").
+         */
+        'currentUserIdResolver' => null,
+
         'Props' => [
             'usersAliasModel' => 'Users',
             'usersModel' => 'Users',

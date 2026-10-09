@@ -161,25 +161,7 @@ obj.path = file.meta.serverKey;
 
 Previously, any authenticated user could view or delete any file by guessing its ID. This is now blocked.
 
-**Impact on admin or multi-user workflows:** If your application needs to allow privileged users (e.g., admins) to access files they do not own, override `getCurrentUserId()` in a subclass of `FilesController` in your application:
-
-```php
-// src/Controller/FilesController.php (in your application, not the plugin)
-class FilesController extends \CakeDC\Uppy\Controller\FilesController
-{
-    protected function getCurrentUserId(): string|int|null
-    {
-        // Allow admins to access all files
-        $identity = $this->getRequest()->getAttribute('identity');
-        if ($identity && $identity->getOriginalData()['role'] === 'admin') {
-            return $identity->getIdentifier(); // will match any file for admin
-        }
-        return parent::getCurrentUserId();
-    }
-}
-```
-
-For true admin bypass, you would return the file's `user_id` directly — but that requires loading the file before calling the check. A cleaner approach is to skip the check entirely for admins via a role guard before reaching the action.
+**Impact on admin or multi-user workflows:** Ownership checks compare the file's `user_id` with the value returned by `getCurrentUserId()`. To change how the current user id is resolved (e.g., non-standard auth), set `Uppy.currentUserIdResolver` (see section 9). To grant privileged users (e.g., admins) access to files they do not own, the single-user-id resolver is not enough: set `Uppy.routes` to `false` and route `/uppy/files/*` to your own controller. The plugin's routes and the bundled `assets.php` always target `CakeDC/Uppy.Files`, so a subclass of `FilesController` in your application is never invoked for them.
 
 ---
 
@@ -193,27 +175,31 @@ When saving a file, `save()` now looks up `Uppy.Props.usersModel` to determine t
 { "error": true, "message": "You are not authorized to associate files with this record" }
 ```
 
-**Impact:** If you have records that legitimately belong to one user but files are being attached by a different user (e.g., a shared-record workflow), you must implement that logic in a subclass of `FilesController` by overriding the relevant logic or by overriding `getCurrentUserId()` to return the record owner's ID in those cases.
+**Impact:** If you have records that legitimately belong to one user but files are attached by a different user (e.g., a shared-record workflow), the single-user-id resolver cannot express it. Set `Uppy.routes` to `false` and route `/uppy/files/*` to your own controller to implement that logic, since the plugin's routes always target `CakeDC/Uppy.Files` and a subclass is never invoked for them.
 
 ---
 
-### 9. `getCurrentUserId()` — new protected method, override if needed
+### 9. Non-standard auth: configure `Uppy.currentUserIdResolver`
 
 **Type:** Potentially breaking — applications using non-standard auth
 
-A new `protected` method `getCurrentUserId()` has been added to `FilesController`. It resolves the current user's ID from:
+`FilesController` resolves the current user's id from:
 
-1. The PSR-7 `identity` request attribute, set by `cakephp/authentication` middleware — **the supported source**.
-2. The `Auth.userId` session key, as a fallback. Be aware that **neither `cakephp/authentication`, `AuthComponent` nor CakeDC/Users write this key**: it exists only for applications (and the plugin's own tests) that set it explicitly.
+1. `Uppy.currentUserIdResolver` — if set, a callable that receives the `ServerRequest` and returns the user id (`string`/`int`) or `null`. When set it is **authoritative** (a `null` result means "no user").
+2. The PSR-7 `identity` request attribute, set by `cakephp/authentication` middleware — **the supported source**.
+3. The `Auth.userId` session key, as a fallback. Be aware that **neither `cakephp/authentication`, `AuthComponent` nor CakeDC/Users write this key**: it exists only for applications (and the plugin's own tests) that set it explicitly.
 
-If your application does not use `cakephp/authentication` (or stores the identity under a different key), you **must** override this method. Otherwise `view()`, `delete()`, `save()`, `index()`, `sign()` and the multipart endpoints will reject every request with HTTP 403:
+If your application does not use `cakephp/authentication` (or stores the identity under a different key), set the resolver in `config/uppy.php`. Otherwise `view()`, `delete()`, `save()`, `index()`, `sign()` and the multipart endpoints will reject every request with HTTP 403:
 
 ```php
-protected function getCurrentUserId(): string|int|null
-{
-    return $this->getRequest()->getSession()->read('MyCustomAuth.userId');
-}
+// config/uppy.php
+'Uppy' => [
+    'currentUserIdResolver' => fn(\Cake\Http\ServerRequest $request) =>
+        $request->getSession()->read('MyCustomAuth.userId'),
+],
 ```
+
+> **Do not subclass `FilesController` for this.** The plugin routes (`/uppy/files/*`) and the bundled `assets.php` always target `CakeDC/Uppy.Files`, so a subclass in your application is never invoked for them. The resolver exists precisely to avoid needing a subclass.
 
 ---
 
@@ -292,7 +278,7 @@ Because the endpoints are reachable in production, the controller now requires a
 | 4 | Config PHP | Remove `filter_var()` wrappers (cosmetic, not required) |
 | 5 | JavaScript | Read `data.key` from `sign()` response and store it |
 | 6 | JavaScript | Use stored `serverKey` as `path` in `save()` payload |
-| 7 | PHP / Auth | Override `getCurrentUserId()` if using non-standard auth |
+| 7 | Config PHP | Set `Uppy.currentUserIdResolver` if using non-standard auth |
 | 8 | PHP / Auth | Review admin/multi-user workflows against new ownership checks |
 | 9 | PHP Entity | Replace mass-assignment of `path`, `adapter`, `hash`, etc. with explicit property assignment |
 | 10 | Config PHP | `Uppy.Props.deleteFileS3` deprecated → use `deleteFileStorage` |

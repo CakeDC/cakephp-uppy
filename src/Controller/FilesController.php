@@ -74,15 +74,35 @@ class FilesController extends AppController
     /**
      * Returns the current authenticated user's identifier.
      *
-     * Reads the PSR-7 'identity' request attribute set by the
-     * cakephp/authentication middleware. Falls back to the 'Auth.userId'
-     * session key, which is not written by the standard auth components and
-     * exists only for applications (and tests) that set it explicitly.
+     * Resolution order:
+     *
+     * 1. `Uppy.currentUserIdResolver` — a callable that receives the
+     *    `ServerRequest` and returns a string, an integer or null. When set, it
+     *    is authoritative (a null result means "no user") and lets applications
+     *    with non-standard auth resolve the id without subclassing.
+     * 2. The PSR-7 'identity' request attribute set by the
+     *    cakephp/authentication middleware.
+     * 3. The 'Auth.userId' session key, which is not written by the standard
+     *    auth components and exists only for applications (and tests) that set
+     *    it explicitly.
      *
      * @return string|int|null
+     * @throws \UnexpectedValueException When the configured resolver returns a non-scalar value.
      */
     protected function getCurrentUserId(): string|int|null
     {
+        $resolver = Configure::read('Uppy.currentUserIdResolver');
+        if (is_callable($resolver)) {
+            $resolved = $resolver($this->getRequest());
+            if ($resolved !== null && !is_string($resolved) && !is_int($resolved)) {
+                throw new UnexpectedValueException(
+                    __('Uppy.currentUserIdResolver must return a string, an integer or null.'),
+                );
+            }
+
+            return $resolved;
+        }
+
         $identity = $this->getRequest()->getAttribute('identity');
         if ($identity !== null) {
             return $identity->getIdentifier();

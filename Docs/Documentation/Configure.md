@@ -45,6 +45,9 @@ return [
         // Register the /uppy/* routes (default true)
         'routes' => true,
 
+        // Resolve the current user id (default null = identity → Auth.userId)
+        'currentUserIdResolver' => null,
+
         'Props' => [
             'usersAliasModel' => 'Users',
             'usersModel' => 'Users',
@@ -137,6 +140,33 @@ return [
 - **R2** — `publicDomain` is your custom domain or `pub-<hash>.r2.dev` URL; `endpoint` is the R2 S3-compatible endpoint (`https://<account-id>.r2.cloudflarestorage.com`).
 
 In test environments, set `Uppy.S3.config.connection` or `Uppy.R2.config.connection` to `'dummy'` to bypass real network calls.
+
+## Authentication
+
+`sign`, the multipart endpoints and `index` require an authenticated user, and `view`, `delete` and `save` enforce ownership by comparing the record's `user_id` with the current user id. The current user id is resolved, in order, from:
+
+1. `Uppy.currentUserIdResolver` — when set, a callable that receives the `ServerRequest` and returns the user id (`string`/`int`) or `null`. It is authoritative: a `null` result means "no user".
+2. The `identity` request attribute set by `cakephp/authentication` — the supported source.
+3. The `Auth.userId` session key — **not** written by `cakephp/authentication`, `AuthComponent` or CakeDC/Users; it exists only for applications (and the plugin's tests) that set it explicitly.
+
+Applications using a non-standard auth mechanism should set the resolver instead of subclassing `FilesController` — the plugin routes (`/uppy/files/*`) and the bundled `assets.php` always target `CakeDC/Uppy.Files`, so a subclass is never invoked for them.
+
+```php
+// config/uppy.php
+'Uppy' => [
+    // cakephp/authentication (identity attribute) is the default; no config needed.
+
+    // Legacy AuthComponent (session stores Auth.User as an array):
+    'currentUserIdResolver' => fn(\Cake\Http\ServerRequest $request) =>
+        $request->getSession()->read('Auth.User.id'),
+
+    // A custom session key:
+    'currentUserIdResolver' => fn(\Cake\Http\ServerRequest $request) =>
+        $request->getSession()->read('MyCustomAuth.userId'),
+],
+```
+
+For privileged workflows (e.g., admins accessing files they do not own) the single-user-id resolver is not enough: set `Uppy.routes` to `false` and route `/uppy/files/*` to your own controller (and override the URLs built in `templates/element/assets.php`).
 
 ## Endpoints
 

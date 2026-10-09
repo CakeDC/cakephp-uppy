@@ -7,10 +7,12 @@ use App\Application;
 use Cake\Core\Configure;
 use Cake\Database\Connection;
 use Cake\Datasource\ConnectionManager;
+use Cake\Http\ServerRequest;
 use Cake\ORM\TableRegistry;
 use Cake\TestSuite\IntegrationTestTrait;
 use Cake\TestSuite\TestCase;
 use Cake\Utility\Text;
+use UnexpectedValueException;
 
 class FilesControllerSecurityTest extends TestCase
 {
@@ -546,6 +548,88 @@ class FilesControllerSecurityTest extends TestCase
         $this->get('/uppy/files');
 
         $this->assertResponseCode(403);
+    }
+
+    public function testSignUsesConfiguredCurrentUserIdResolver(): void
+    {
+        // No loginAs(): the user id comes only from the configured resolver.
+        Configure::write('Uppy.currentUserIdResolver', static fn(ServerRequest $request): int => 1);
+
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+        $this->post('/uppy/files/sign', (string)json_encode([
+            'filename' => 'resolver.png',
+            'contentType' => 'image/png',
+        ]));
+
+        $this->assertResponseOk();
+        $body = $this->responseBody();
+        $this->assertFalse($body['error']);
+        $this->assertArrayHasKey('key', $body);
+    }
+
+    public function testCurrentUserIdResolverReceivesServerRequest(): void
+    {
+        // The resolver reads the request, proving it receives the ServerRequest.
+        Configure::write('Uppy.currentUserIdResolver', static function (ServerRequest $request): int {
+            return (int)$request->getHeaderLine('X-Test-User');
+        });
+
+        $this->configRequest(['headers' => [
+            'Accept' => 'application/json',
+            'Content-Type' => 'application/json',
+            'X-Test-User' => '2',
+        ]]);
+        $this->post('/uppy/files/sign', (string)json_encode([
+            'filename' => 'resolver.png',
+            'contentType' => 'image/png',
+        ]));
+
+        $this->assertResponseOk();
+        $this->assertFalse($this->responseBody()['error']);
+    }
+
+    public function testCurrentUserIdResolverReturningNullBlocksRequest(): void
+    {
+        // A session user exists, but the configured resolver is authoritative:
+        // returning null must still block the request.
+        $this->loginAs(1);
+        Configure::write('Uppy.currentUserIdResolver', static fn(ServerRequest $request): ?int => null);
+
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+        $this->post('/uppy/files/sign', (string)json_encode([
+            'filename' => 'resolver.png',
+            'contentType' => 'image/png',
+        ]));
+
+        $this->assertResponseCode(403);
+    }
+
+    public function testCurrentUserIdResolverRejectsNonScalar(): void
+    {
+        Configure::write('Uppy.currentUserIdResolver', static fn(ServerRequest $request): array => ['bad']);
+
+        // Let the misconfiguration surface as an exception instead of a 500 page.
+        $this->disableErrorHandlerMiddleware();
+        $this->expectException(UnexpectedValueException::class);
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+        $this->post('/uppy/files/sign', (string)json_encode([
+            'filename' => 'resolver.png',
+            'contentType' => 'image/png',
+        ]));
+    }
+
+    public function testIndexUsesConfiguredCurrentUserIdResolver(): void
+    {
+        $this->insertFile(['user_id' => 7, 'filename' => 'resolver-mine.png']);
+        $this->insertFile(['user_id' => 8, 'filename' => 'resolver-theirs.png']);
+
+        Configure::write('Uppy.currentUserIdResolver', static fn(ServerRequest $request): int => 7);
+
+        $this->get('/uppy/files');
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('resolver-mine.png');
+        $this->assertResponseNotContains('resolver-theirs.png');
     }
 
     public function testDemoAddPageRendersInDebug(): void
