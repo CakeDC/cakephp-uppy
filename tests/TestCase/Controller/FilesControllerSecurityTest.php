@@ -1020,6 +1020,135 @@ class FilesControllerSecurityTest extends TestCase
         $this->assertStringContainsString('not authorized', strtolower($body['result']['message']));
     }
 
+    public function testSaveRejectsExpiredToken(): void
+    {
+        // A token older than the default TTL (1 hour) must not be accepted.
+        $expiredKey = 'expired.png';
+        $this->session([
+            'Auth.userId' => 1,
+            'Uppy.pendingUploads' => [$expiredKey => time() - 7200],
+        ]);
+
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+        $this->post('/uppy/files/save', (string)json_encode([
+            'items' => [[
+                'model' => 'Users',
+                'foreign_key' => 1,
+                'filename' => 'test.png',
+                'filesize' => 100,
+                'extension' => 'png',
+                'mime_type' => 'image/png',
+                'path' => $expiredKey,
+            ]],
+        ]));
+
+        $body = $this->responseBody();
+        $this->assertTrue($body['result']['error']);
+        $this->assertStringContainsString('unrecognized', strtolower($body['result']['message']));
+    }
+
+    public function testExpiredTokensArePrunedFromSession(): void
+    {
+        // Reading the store prunes expired entries; the fresh token is consumed.
+        $expiredKey = 'old.png';
+        $freshKey = 'fresh.png';
+        $this->session([
+            'Auth.userId' => 1,
+            'Uppy.pendingUploads' => [
+                $expiredKey => time() - 7200,
+                $freshKey => time(),
+            ],
+        ]);
+
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+        $this->post('/uppy/files/save', (string)json_encode([
+            'items' => [[
+                'model' => 'Users',
+                'foreign_key' => 1,
+                'filename' => 'test.png',
+                'filesize' => 100,
+                'extension' => 'png',
+                'mime_type' => 'image/png',
+                'path' => $freshKey,
+            ]],
+        ]));
+
+        $this->assertFalse($this->responseBody()['result']['error']);
+
+        $pending = (array)($_SESSION['Uppy']['pendingUploads'] ?? []);
+        $this->assertArrayNotHasKey($expiredKey, $pending, 'Expired tokens must be pruned');
+        $this->assertArrayNotHasKey($freshKey, $pending, 'The consumed token must be removed');
+    }
+
+    public function testPendingUploadsTtlZeroDisablesExpiry(): void
+    {
+        // With expiry disabled (TTL 0), an old token is still accepted.
+        Configure::write('Uppy.pendingUploadsTtl', 0);
+        $oldKey = 'old-but-valid.png';
+        $this->session([
+            'Auth.userId' => 1,
+            'Uppy.pendingUploads' => [$oldKey => time() - 7200],
+        ]);
+
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+        $this->post('/uppy/files/save', (string)json_encode([
+            'items' => [[
+                'model' => 'Users',
+                'foreign_key' => 1,
+                'filename' => 'test.png',
+                'filesize' => 100,
+                'extension' => 'png',
+                'mime_type' => 'image/png',
+                'path' => $oldKey,
+            ]],
+        ]));
+
+        $this->assertFalse($this->responseBody()['result']['error']);
+    }
+
+    public function testSavePreservesTokenRegisteredDuringSave(): void
+    {
+        // A concurrent sign() registers a token while saveMany() runs: the
+        // re-read-before-write must keep it, while the consumed token is removed.
+        $consumedKey = 'consume-me.png';
+        $concurrentKey = 'concurrent.png';
+        $this->session([
+            'Auth.userId' => 1,
+            'Uppy.pendingUploads' => [$consumedKey => time()],
+        ]);
+
+        $table = $this->getMockBuilder(FilesTable::class)
+            ->onlyMethods(['saveMany'])
+            ->getMock();
+        $table->method('saveMany')->willReturnCallback(function (iterable $entities) use ($concurrentKey): iterable {
+            $pending = (array)($_SESSION['Uppy']['pendingUploads'] ?? []);
+            $pending[$concurrentKey] = time();
+            $_SESSION['Uppy']['pendingUploads'] = $pending;
+
+            return $entities;
+        });
+        $this->getTableLocator()->set('CakeDC/Uppy.Files', $table);
+
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+        $this->post('/uppy/files/save', (string)json_encode([
+            'items' => [[
+                'model' => 'Users',
+                'foreign_key' => 1,
+                'filename' => 'test.png',
+                'filesize' => 100,
+                'extension' => 'png',
+                'mime_type' => 'image/png',
+                'path' => $consumedKey,
+            ]],
+        ]));
+
+        $this->assertFalse($this->responseBody()['result']['error']);
+
+        $pending = (array)($_SESSION['Uppy']['pendingUploads'] ?? []);
+        $this->assertArrayNotHasKey($consumedKey, $pending, 'The consumed token must be removed');
+        $this->assertArrayHasKey($concurrentKey, $pending, 'A token registered during the save must survive');
+    }
+
     /** Insert a file row directly and return its ID. */
     protected function insertFile(array $overrides = []): string
     {

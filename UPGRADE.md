@@ -270,6 +270,16 @@ Because the endpoints are reachable in production, the controller now requires a
 
 ---
 
+### 15. Pending-upload tokens: expiry and concurrency
+
+**Type:** Behavior change — session token lifetime
+
+The one-time tokens that `sign()` and the multipart endpoints register (and that `save()` consumes) now expire. `Uppy.pendingUploadsTtl` (seconds, default `3600`) sets their lifetime; expired tokens are pruned on read, which bounds the growth of the `Uppy.pendingUploads` session key. Set it to `0` to disable expiry.
+
+The store still lives in the session and is read-modify-written. On a successful `save()` the store is re-read right before writing and only the tokens consumed by that batch are removed, so a token registered concurrently during the save is not lost and a used token cannot be brought back. **Full atomicity is not guaranteed:** with session handlers that do not lock (database, cache, Redis) two truly simultaneous requests can still race. For strict guarantees use a locking session handler, or set `Uppy.routes` to `false` and implement the endpoints in your own controller.
+
+---
+
 ## Summary of required changes
 
 | # | Area | Action required |

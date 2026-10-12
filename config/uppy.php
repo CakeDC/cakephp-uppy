@@ -47,6 +47,14 @@ return [
         'routes' => true,
 
         /*
+         * Lifetime (in seconds) of the pending-upload tokens kept in the session.
+         * `sign()` and the multipart endpoints register a one-time token that
+         * `save()` accepts once; tokens older than this are pruned on read.
+         * Set to 0 to disable expiry. Default: 3600 (1 hour).
+         */
+        'pendingUploadsTtl' => 3600,
+
+        /*
          * Resolves the current user id used by the ownership checks.
          * When null, the plugin reads the `identity` request attribute set by
          * cakephp/authentication and falls back to the `Auth.userId` session

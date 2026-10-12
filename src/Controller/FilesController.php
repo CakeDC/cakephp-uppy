@@ -235,10 +235,12 @@ class FilesController extends AppController
         $files = [];
         $result = [];
         $session = $this->getRequest()->getSession();
-        // Working copy of the session tokens. They are only committed back to the
-        // session after a successful save, so a failed batch can be retried
-        // without orphaning the objects already uploaded to storage.
-        $remainingUploads = (array)$session->read('Uppy.pendingUploads', []);
+        // Snapshot of the valid (non-expired) session tokens; expired ones are
+        // pruned on read. The snapshot is a working copy: consumed tokens are
+        // removed from the live session only after a successful save, so a failed
+        // batch can be retried without orphaning the objects already uploaded.
+        $pendingBefore = $this->readPendingUploads();
+        $remainingUploads = $pendingBefore;
         foreach ($items as $item) {
             if (!is_array($item)) {
                 $result['error'] = true;
@@ -337,7 +339,17 @@ class FilesController extends AppController
         $savedFiles = $this->Files->saveMany($files);
         if ($savedFiles !== false) {
             // Commit the consumed one-time tokens only after a successful save.
-            $session->write('Uppy.pendingUploads', $remainingUploads);
+            // Re-read the store right before writing and remove only the tokens
+            // consumed by this batch, so a token registered concurrently by a
+            // sign()/multipart request during saveMany() is not lost, and a used
+            // token cannot be brought back. Full atomicity still requires a
+            // locking session handler (see UPGRADE.md).
+            $consumedKeys = array_keys(array_diff_key($pendingBefore, $remainingUploads));
+            $sessionTokens = (array)$session->read('Uppy.pendingUploads', []);
+            foreach ($consumedKeys as $consumedKey) {
+                unset($sessionTokens[$consumedKey]);
+            }
+            $session->write('Uppy.pendingUploads', $sessionTokens);
             $result['error'] = false;
             $result['message'] = __('The association has been be saved correctly');
             $result['saved_file_ids'] = collection($savedFiles)->extract('id')->toArray();
@@ -698,9 +710,51 @@ class FilesController extends AppController
     private function rememberPendingUpload(string $key): void
     {
         $session = $this->getRequest()->getSession();
-        $pending = $session->read('Uppy.pendingUploads', []);
+        $pending = $this->readPendingUploads();
         $pending[$key] = time();
         $session->write('Uppy.pendingUploads', $pending);
+    }
+
+    /**
+     * Read the pending-upload tokens, dropping the expired ones.
+     *
+     * Expiry is controlled by `Uppy.pendingUploadsTtl` (seconds; 0 or a
+     * negative value disables it). The pruned store is written back only when
+     * something was dropped.
+     *
+     * @return array<string, int> Valid tokens keyed by storage key.
+     */
+    private function readPendingUploads(): array
+    {
+        $session = $this->getRequest()->getSession();
+        $pending = (array)$session->read('Uppy.pendingUploads', []);
+        $pruned = $this->prunePendingUploads($pending);
+        if ($pruned !== $pending) {
+            $session->write('Uppy.pendingUploads', $pruned);
+        }
+
+        return $pruned;
+    }
+
+    /**
+     * Drop tokens older than the configured TTL.
+     *
+     * @param array<string, int> $pending Tokens keyed by storage key.
+     * @return array<string, int> Tokens still within the TTL.
+     */
+    private function prunePendingUploads(array $pending): array
+    {
+        $ttl = (int)Configure::read('Uppy.pendingUploadsTtl', 3600);
+        if ($ttl <= 0) {
+            return $pending;
+        }
+
+        $now = time();
+
+        return array_filter(
+            $pending,
+            static fn(int $timestamp): bool => $now - $timestamp <= $ttl,
+        );
     }
 
     /**
