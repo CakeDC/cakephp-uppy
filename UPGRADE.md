@@ -250,7 +250,7 @@ The `delete` action has been added to `FormProtection`'s `unlockedActions` list 
 
 `CakeDC\Uppy\Util\S3Trait` remains available as a deprecated shim, but the storage backend was refactored into adapters:
 
-- `S3Trait::_getS3Client()` (3.x) was renamed to `getS3Client()`. A deprecated `_getS3Client()` alias now delegates to `getS3Client()`; override `makeS3Client()` to inject a custom client.
+- `S3Trait::_getS3Client()` (3.x, `private`) was renamed to `getS3Client()`. Rename any `_getS3Client()` call to `getS3Client()` and override `makeS3Client()` to inject a custom client. No `_getS3Client()` alias is provided: it could not coexist with applications that define their own `_getS3Client()` in a class that also uses `S3Trait`.
 - The multipart methods (`createMultipartUpload()`, `createPresignedUploadPart()`, `completeMultipartUpload()`, `abortMultipartUpload()`) moved out of the trait into `CakeDC\Uppy\Storage\MultipartUploadAdapterInterface`, implemented by `S3Adapter` and `R2Adapter`. Classes that extended the trait to override these methods must implement/override the adapter instead.
 - New code should use `StorageAdapterInterface` / `MultipartUploadAdapterInterface` via `AdapterFactory::create()`.
 

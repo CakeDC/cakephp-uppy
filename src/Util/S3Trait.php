@@ -40,17 +40,6 @@ trait S3Trait
     }
 
     /**
-     * Backward-compatible alias for getS3Client().
-     *
-     * @return \Aws\S3\S3Client
-     * @deprecated 2.next-cake5 Use getS3Client() (or a storage adapter) instead.
-     */
-    protected function _getS3Client(): S3Client
-    {
-        return $this->getS3Client();
-    }
-
-    /**
      * @param string $operation Operation name (lifeTimePutObject or lifeTimeGetObject).
      * @return string
      */

@@ -42,31 +42,6 @@ class S3TraitTest extends TestCase
         parent::tearDown();
     }
 
-    public function testGetS3ClientAliasDelegates(): void
-    {
-        $client = $this->createMock(AwsStubS3Client::class);
-
-        $subject = new class ($client) {
-            use S3Trait;
-
-            public function __construct(private readonly S3Client $client)
-            {
-            }
-
-            protected function makeS3Client(): S3Client
-            {
-                return $this->client;
-            }
-
-            public function alias(): S3Client
-            {
-                return $this->_getS3Client();
-            }
-        };
-
-        $this->assertSame($client, $subject->alias());
-    }
-
     // ── setPublicPermissions ──────────────────────────────────────────────────
 
     public function testSetPublicPermissionsCallsPutObjectAclWithCorrectParams(): void
