@@ -216,6 +216,11 @@ class FilesControllerSecurityTest extends TestCase
     {
         $this->loginAs(1);
         $key = 'alerrt/ResourceFiles/multipart-complete.png';
+        // createMultipartUpload() must have registered the upload for this session.
+        $this->session([
+            'Auth.userId' => 1,
+            'Uppy.multipartUploads' => ['dummy-upload-id' => $key],
+        ]);
 
         $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
         $this->post('/uppy/files/complete-multipart-upload', (string)json_encode([
@@ -260,6 +265,127 @@ class FilesControllerSecurityTest extends TestCase
             ->execute('SELECT path FROM uppy_files WHERE path = :path', ['path' => $key])
             ->fetchAll('assoc');
         $this->assertNotEmpty($rows, 'The multipart file metadata should be persisted');
+    }
+
+    public function testSignPartRejectsUnknownUploadId(): void
+    {
+        $this->loginAs(1);
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+        $this->post('/uppy/files/sign-part', (string)json_encode([
+            'uploadId' => 'forged-upload-id',
+            'key' => 'alerrt/ResourceFiles/forged.pdf',
+            'partNumber' => 1,
+        ]));
+
+        $this->assertResponseCode(403);
+        $this->assertSame(403, $this->responseBody()['code']);
+    }
+
+    public function testCompleteMultipartUploadRejectsUnknownUploadId(): void
+    {
+        $this->loginAs(1);
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+        $this->post('/uppy/files/complete-multipart-upload', (string)json_encode([
+            'uploadId' => 'forged-upload-id',
+            'key' => 'alerrt/ResourceFiles/forged.pdf',
+            'parts' => [['PartNumber' => 1, 'ETag' => '"abc"']],
+        ]));
+
+        $this->assertResponseCode(403);
+        $this->assertSame(403, $this->responseBody()['code']);
+    }
+
+    public function testCompleteMultipartUploadRejectsKeyMismatch(): void
+    {
+        // The uploadId is known to the session, but the client sends another key.
+        $this->session([
+            'Auth.userId' => 1,
+            'Uppy.multipartUploads' => ['dummy-upload-id' => 'alerrt/ResourceFiles/real.pdf'],
+        ]);
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+        $this->post('/uppy/files/complete-multipart-upload', (string)json_encode([
+            'uploadId' => 'dummy-upload-id',
+            'key' => 'alerrt/ResourceFiles/other.pdf',
+            'parts' => [['PartNumber' => 1, 'ETag' => '"abc"']],
+        ]));
+
+        $this->assertResponseCode(403);
+    }
+
+    public function testAbortMultipartUploadRejectsUnknownUploadId(): void
+    {
+        $this->loginAs(1);
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+        $this->post('/uppy/files/abort-multipart-upload', (string)json_encode([
+            'uploadId' => 'forged-upload-id',
+            'key' => 'alerrt/ResourceFiles/forged.pdf',
+        ]));
+
+        $this->assertResponseCode(403);
+        $this->assertSame(403, $this->responseBody()['code']);
+    }
+
+    public function testCreateMultipartUploadBindsUploadIdToSession(): void
+    {
+        $this->loginAs(1);
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+        $this->post('/uppy/files/create-multipart-upload', (string)json_encode([
+            'filename' => 'large.png',
+            'contentType' => 'image/png',
+        ]));
+
+        $this->assertResponseOk();
+        $body = $this->responseBody();
+        $this->assertFalse($body['error']);
+
+        $uploads = (array)($_SESSION['Uppy']['multipartUploads'] ?? []);
+        $this->assertArrayHasKey('dummy-upload-id', $uploads);
+        $this->assertSame($body['key'], $uploads['dummy-upload-id']);
+    }
+
+    public function testMultipartUploadIsBoundToCreatingSession(): void
+    {
+        $this->loginAs(1);
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+
+        // 1. createMultipartUpload() registers the upload for this session.
+        $this->post('/uppy/files/create-multipart-upload', (string)json_encode([
+            'filename' => 'large.png',
+            'contentType' => 'image/png',
+        ]));
+        $created = $this->responseBody();
+        $this->assertFalse($created['error']);
+        $uploadId = $created['uploadId'];
+        $key = $created['key'];
+
+        // IntegrationTestTrait does not carry controller-side session writes
+        // forward; re-seed them for the next requests.
+        $multipart = (array)($_SESSION['Uppy']['multipartUploads'] ?? []);
+
+        // 2. sign-part accepts the bound uploadId/key.
+        $this->session(['Auth.userId' => 1, 'Uppy.multipartUploads' => $multipart]);
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+        $this->post('/uppy/files/sign-part', (string)json_encode([
+            'uploadId' => $uploadId,
+            'key' => $key,
+            'partNumber' => 1,
+        ]));
+        $this->assertResponseOk();
+        $this->assertFalse($this->responseBody()['error']);
+
+        // 3. complete accepts it and drops the multipart entry.
+        $this->session(['Auth.userId' => 1, 'Uppy.multipartUploads' => $multipart]);
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+        $this->post('/uppy/files/complete-multipart-upload', (string)json_encode([
+            'uploadId' => $uploadId,
+            'key' => $key,
+            'parts' => [['PartNumber' => 1, 'ETag' => '"abc"']],
+        ]));
+        $this->assertResponseOk();
+        $this->assertFalse($this->responseBody()['error']);
+
+        $after = (array)($_SESSION['Uppy']['multipartUploads'] ?? []);
+        $this->assertArrayNotHasKey($uploadId, $after, 'The multipart entry must be dropped after completion');
     }
 
     public function testSaveRejectsAlreadyUsedPath(): void

@@ -521,6 +521,10 @@ class FilesController extends AppController
             return $this->s3ErrorResponse($exception);
         }
 
+        // Remember the server-issued pair so signPart()/completeMultipartUpload()/
+        // abortMultipartUpload() can verify the upload belongs to this session.
+        $this->rememberMultipartUpload($result['uploadId'], $result['key']);
+
         return $this->jsonResponse([
             'error' => false,
             'code' => 200,
@@ -564,6 +568,10 @@ class FilesController extends AppController
                 'code' => 400,
                 'message' => __('uploadId, key, and partNumber are required'),
             ], 400);
+        }
+
+        if (!$this->isKnownMultipartUpload((string)$uploadId, (string)$key)) {
+            return $this->unknownMultipartUploadResponse();
         }
 
         try {
@@ -628,9 +636,15 @@ class FilesController extends AppController
             }
         }
 
+        // The upload must belong to this session; use the server-issued key.
+        $knownKey = $this->multipartUploadKey((string)$uploadId);
+        if ($knownKey === null || $knownKey !== (string)$key) {
+            return $this->unknownMultipartUploadResponse();
+        }
+
         try {
             $result = $this->storageAdapter->completeMultipartUpload(
-                (string)$key,
+                $knownKey,
                 (string)$uploadId,
                 $parts,
             );
@@ -638,9 +652,11 @@ class FilesController extends AppController
             return $this->s3ErrorResponse($exception);
         }
 
-        // Register the completed key so the follow-up save() accepts it as a
-        // server-issued path (one-time token, consumed by save()).
-        $this->rememberPendingUpload((string)$key);
+        // Register the server-issued key (not the client-supplied one) so the
+        // follow-up save() accepts it as a server-issued path, then drop the
+        // multipart entry (one-time).
+        $this->rememberPendingUpload($knownKey);
+        $this->forgetMultipartUpload((string)$uploadId);
 
         return $this->jsonResponse([
             'error' => false,
@@ -682,6 +698,10 @@ class FilesController extends AppController
             ], 400);
         }
 
+        if (!$this->isKnownMultipartUpload((string)$uploadId, (string)$key)) {
+            return $this->unknownMultipartUploadResponse();
+        }
+
         try {
             $this->storageAdapter->abortMultipartUpload(
                 (string)$key,
@@ -690,6 +710,8 @@ class FilesController extends AppController
         } catch (AwsException $exception) {
             return $this->s3ErrorResponse($exception);
         }
+
+        $this->forgetMultipartUpload((string)$uploadId);
 
         return $this->jsonResponse([
             'error' => false,
@@ -713,6 +735,81 @@ class FilesController extends AppController
         $pending = $this->readPendingUploads();
         $pending[$key] = time();
         $session->write('Uppy.pendingUploads', $pending);
+    }
+
+    /**
+     * Remember a server-issued multipart upload id and its storage key.
+     *
+     * The pair is kept in the session so signPart()/completeMultipartUpload()/
+     * abortMultipartUpload() can verify the upload belongs to the session that
+     * created it, instead of trusting the client-supplied uploadId/key.
+     *
+     * @param string $uploadId Multipart upload id issued by the storage adapter.
+     * @param string $key Storage key issued by the server for this upload.
+     * @return void
+     */
+    private function rememberMultipartUpload(string $uploadId, string $key): void
+    {
+        $session = $this->getRequest()->getSession();
+        $uploads = (array)$session->read('Uppy.multipartUploads', []);
+        $uploads[$uploadId] = $key;
+        $session->write('Uppy.multipartUploads', $uploads);
+    }
+
+    /**
+     * Return the storage key registered for a multipart upload id, if any.
+     *
+     * @param string $uploadId Multipart upload id supplied by the client.
+     * @return string|null The server-issued key, or null when unknown.
+     */
+    private function multipartUploadKey(string $uploadId): ?string
+    {
+        $uploads = (array)$this->getRequest()->getSession()->read('Uppy.multipartUploads', []);
+        $key = $uploads[$uploadId] ?? null;
+
+        return is_string($key) ? $key : null;
+    }
+
+    /**
+     * Drop a multipart upload id from the session store.
+     *
+     * @param string $uploadId Multipart upload id.
+     * @return void
+     */
+    private function forgetMultipartUpload(string $uploadId): void
+    {
+        $session = $this->getRequest()->getSession();
+        $uploads = (array)$session->read('Uppy.multipartUploads', []);
+        unset($uploads[$uploadId]);
+        $session->write('Uppy.multipartUploads', $uploads);
+    }
+
+    /**
+     * Whether the client-supplied uploadId/key match a server-issued upload.
+     *
+     * @param string $uploadId Client-supplied multipart upload id.
+     * @param string $key Client-supplied storage key.
+     * @return bool
+     */
+    private function isKnownMultipartUpload(string $uploadId, string $key): bool
+    {
+        $knownKey = $this->multipartUploadKey($uploadId);
+
+        return $knownKey !== null && $knownKey === $key;
+    }
+
+    /**
+     * JSON 403 for a multipart upload id/key that is not in this session.
+     *
+     * @return \Cake\Http\Response
+     */
+    private function unknownMultipartUploadResponse(): Response
+    {
+        return $this->jsonResponse([
+            'error' => true,
+            'code' => 403,
+            'message' => __('Unknown or unauthorized multipart upload'),
+        ], 403);
     }
 
     /**

@@ -280,6 +280,14 @@ The store still lives in the session and is read-modify-written. On a successful
 
 ---
 
+### 16. Multipart endpoints: upload id bound to the creating session
+
+**Type:** Behavior change — multipart uploads
+
+`createMultipartUpload()` now stores the server-issued `uploadId` → `key` pair in the session. `signPart()`, `completeMultipartUpload()` and `abortMultipartUpload()` reject a request whose `uploadId` was not created in the same session (HTTP **403**, `{ "error": true, "code": 403, "message": "Unknown or unauthorized multipart upload" }`). This stops a client from completing or aborting another session's upload, or from injecting an arbitrary key into the pending-upload store. A normal client that calls `createMultipartUpload()` and then uses the returned `uploadId`/`key` in the same session is unaffected.
+
+---
+
 ## Summary of required changes
 
 | # | Area | Action required |
