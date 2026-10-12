@@ -15,6 +15,7 @@ namespace CakeDC\Uppy\Controller;
 use Aws\Exception\AwsException;
 use Cake\Core\Configure;
 use Cake\Database\Exception\DatabaseException;
+use Cake\Datasource\EntityInterface;
 use Cake\Datasource\Exception\RecordNotFoundException;
 use Cake\Http\Exception\ForbiddenException;
 use Cake\Http\Exception\UnauthorizedException;
@@ -132,6 +133,31 @@ class FilesController extends AppController
         throw new UnexpectedValueException(
             __('The user id from {0} must be a string, an integer or null.', $source),
         );
+    }
+
+    /**
+     * Resolve the owner id of a related record for the `save()` ownership check.
+     *
+     * Uses `Uppy.ownerIdResolver` when set (a callable receiving the related
+     * record and the `ServerRequest` and returning the owner id), otherwise the
+     * conventional `<usersModel>_id` column. An empty string is treated as no
+     * owner.
+     *
+     * @param \Cake\Datasource\EntityInterface $record Related record being associated.
+     * @return string|int|null
+     * @throws \UnexpectedValueException When the resolved value is not a string, an integer or null.
+     */
+    private function resolveRecordOwnerId(EntityInterface $record): string|int|null
+    {
+        $resolver = Configure::read('Uppy.ownerIdResolver');
+        if (is_callable($resolver)) {
+            return $this->normalizeUserId($resolver($record, $this->getRequest()), 'Uppy.ownerIdResolver');
+        }
+
+        $model = Configure::readOrFail('Uppy.Props.usersModel');
+        $relationKey = Inflector::singularize(mb_strtolower($model)) . '_id';
+
+        return $this->normalizeUserId($record->get($relationKey), $relationKey);
     }
 
     /**
@@ -307,10 +333,10 @@ class FilesController extends AppController
 
                 return;
             }
-            // Issue #4 fix: verify the related record belongs to the current user
-            $model = Configure::readOrFail('Uppy.Props.usersModel');
-            $relation_key = Inflector::singularize(mb_strtolower($model)) . '_id';
-            $recordOwnerId = $register->{$relation_key};
+            // Verify the related record belongs to the current user. The owner
+            // id comes from Uppy.ownerIdResolver when set, otherwise from the
+            // conventional `<usersModel>_id` column.
+            $recordOwnerId = $this->resolveRecordOwnerId($register);
             $currentUserId = $this->getCurrentUserId();
 
             if (
@@ -330,7 +356,7 @@ class FilesController extends AppController
             $file->filename = isset($item['filename']) ? (string)$item['filename'] : null;
             $file->filesize = isset($item['filesize']) ? (int)$item['filesize'] : null;
             $file->extension = isset($item['extension']) ? (string)$item['extension'] : null;
-            $file->user_id = $recordOwnerId; // already verified above
+            $file->user_id = (string)$recordOwnerId; // already verified non-null above
             $file->model = $tableAlias;
             $file->path = $path; // server-validated path (from session token)
             $files[] = $file;

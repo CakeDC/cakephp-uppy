@@ -169,13 +169,13 @@ Previously, any authenticated user could view or delete any file by guessing its
 
 **Type:** Breaking — applications without per-user record scoping
 
-When saving a file, `save()` now looks up `Uppy.Props.usersModel` to determine the ownership column on the related record (e.g., `user_id` for a `Users` model). If the related record does not belong to the currently authenticated user, the request is rejected with:
+When saving a file, `save()` determines the owner of the related record and rejects the request if it does not match the currently authenticated user. By default the owner column is derived from `Uppy.Props.usersModel` (e.g. `user_id` for a `Users` model). Set `Uppy.ownerIdResolver` to a callable that receives the related record and the `ServerRequest` to use a different owner column, a computed owner, or shared/admin rules (see section 17). If the record does not belong to the current user, the request is rejected with:
 
 ```json
 { "error": true, "message": "You are not authorized to associate files with this record" }
 ```
 
-**Impact:** If you have records that legitimately belong to one user but files are attached by a different user (e.g., a shared-record workflow), the single-user-id resolver cannot express it. Set `Uppy.routes` to `false` and route `/uppy/files/*` to your own controller to implement that logic, since the plugin's routes always target `CakeDC/Uppy.Files` and a subclass is never invoked for them.
+**Impact:** If you have records that legitimately belong to one user but files are attached by a different user (e.g., a shared-record workflow), set `Uppy.ownerIdResolver` to express that rule. As a last resort, set `Uppy.routes` to `false` and route `/uppy/files/*` to your own controller, since the plugin's routes always target `CakeDC/Uppy.Files` and a subclass is never invoked for them.
 
 ---
 
@@ -285,6 +285,24 @@ The store still lives in the session and is read-modify-written. On a successful
 **Type:** Behavior change — multipart uploads
 
 `createMultipartUpload()` now stores the server-issued `uploadId` → `key` pair in the session. `signPart()`, `completeMultipartUpload()` and `abortMultipartUpload()` reject a request whose `uploadId` was not created in the same session (HTTP **403**, `{ "error": true, "code": 403, "message": "Unknown or unauthorized multipart upload" }`). This stops a client from completing or aborting another session's upload, or from injecting an arbitrary key into the pending-upload store. A normal client that calls `createMultipartUpload()` and then uses the returned `uploadId`/`key` in the same session is unaffected.
+
+---
+
+### 17. `save()`: configure the record owner with `Uppy.ownerIdResolver`
+
+**Type:** Feature — extensibility
+
+`save()` enforces that the record a file is associated with belongs to the current user. By default the owner id is read from the `<Uppy.Props.usersModel>_id` column (e.g. `user_id`). Set `Uppy.ownerIdResolver` to a callable that receives the related record and the `ServerRequest` and returns the owner id (`string`/`int`) or `null`:
+
+```php
+// config/uppy.php
+'Uppy' => [
+    'ownerIdResolver' => fn($record, \Cake\Http\ServerRequest $request) =>
+        $record->get('owner_uuid'),
+],
+```
+
+An empty string or `null` means "no owner" and the association is rejected. This lets applications use a differently named owner column, a computed owner, or a shared/admin rule without turning off `Uppy.routes` or writing a custom controller.
 
 ---
 

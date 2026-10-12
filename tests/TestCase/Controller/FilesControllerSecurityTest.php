@@ -7,6 +7,7 @@ use App\Application;
 use Cake\Core\Configure;
 use Cake\Database\Connection;
 use Cake\Datasource\ConnectionManager;
+use Cake\Datasource\EntityInterface;
 use Cake\Http\ServerRequest;
 use Cake\ORM\TableRegistry;
 use Cake\TestSuite\IntegrationTestTrait;
@@ -516,6 +517,103 @@ class FilesControllerSecurityTest extends TestCase
         $body = $this->responseBody();
         $this->assertTrue($body['result']['error']);
         $this->assertStringContainsString('not authorized', strtolower($body['result']['message']));
+    }
+
+    public function testSaveUsesConfiguredOwnerIdResolver(): void
+    {
+        // Logged in as user 2; the resolver overrides the default `user_id`
+        // column and declares that the record (foreign_key 1, owned by user 1)
+        // belongs to user 2.
+        Configure::write(
+            'Uppy.ownerIdResolver',
+            static fn(EntityInterface $record, ServerRequest $request): int => 2,
+        );
+
+        $signedKey = 'owner-resolver.png';
+        $this->session([
+            'Auth.userId' => 2,
+            'Uppy.pendingUploads' => [$signedKey => time()],
+        ]);
+
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+        $this->post('/uppy/files/save', (string)json_encode([
+            'items' => [[
+                'model' => 'Users',
+                'foreign_key' => 1,
+                'filename' => 'test.png',
+                'filesize' => 100,
+                'extension' => 'png',
+                'mime_type' => 'image/png',
+                'path' => $signedKey,
+            ]],
+        ]));
+
+        $body = $this->responseBody();
+        $this->assertFalse($body['result']['error']);
+
+        $row = $this->connection()
+            ->execute('SELECT user_id FROM uppy_files WHERE path = :path', ['path' => $signedKey])
+            ->fetchAll('assoc');
+        $this->assertNotEmpty($row);
+        $this->assertSame(2, (int)$row[0]['user_id']);
+    }
+
+    public function testSaveOwnerIdResolverReturningNullRejects(): void
+    {
+        Configure::write(
+            'Uppy.ownerIdResolver',
+            static fn(EntityInterface $record, ServerRequest $request): ?int => null,
+        );
+
+        $signedKey = 'owner-resolver-null.png';
+        $this->session([
+            'Auth.userId' => 1,
+            'Uppy.pendingUploads' => [$signedKey => time()],
+        ]);
+
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+        $this->post('/uppy/files/save', (string)json_encode([
+            'items' => [[
+                'model' => 'Users',
+                'foreign_key' => 1,
+                'filename' => 'test.png',
+                'filesize' => 100,
+                'extension' => 'png',
+                'mime_type' => 'image/png',
+                'path' => $signedKey,
+            ]],
+        ]));
+
+        $this->assertTrue($this->responseBody()['result']['error']);
+    }
+
+    public function testSaveOwnerIdResolverRejectsNonScalar(): void
+    {
+        Configure::write(
+            'Uppy.ownerIdResolver',
+            static fn(EntityInterface $record, ServerRequest $request): array => ['bad'],
+        );
+
+        $signedKey = 'owner-resolver-bad.png';
+        $this->session([
+            'Auth.userId' => 1,
+            'Uppy.pendingUploads' => [$signedKey => time()],
+        ]);
+
+        $this->disableErrorHandlerMiddleware();
+        $this->expectException(UnexpectedValueException::class);
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+        $this->post('/uppy/files/save', (string)json_encode([
+            'items' => [[
+                'model' => 'Users',
+                'foreign_key' => 1,
+                'filename' => 'test.png',
+                'filesize' => 100,
+                'extension' => 'png',
+                'mime_type' => 'image/png',
+                'path' => $signedKey,
+            ]],
+        ]));
     }
 
     public function testSaveDoesNotPersistClientProvidedHash(): void

@@ -71,6 +71,21 @@ return [
          */
         'currentUserIdResolver' => null,
 
+        /*
+         * Resolves the owner id of the record a file is associated with, used
+         * by save()'s ownership check. When null, the plugin derives it from
+         * `<Uppy.Props.usersModel>_id` (e.g. `user_id`). Set a callable that
+         * receives the related record and the ServerRequest and returns the
+         * owner id (string/int) or null, to support a different owner column, a
+         * computed owner, or shared/admin rules:
+         *
+         *   'ownerIdResolver' => fn($record, \Cake\Http\ServerRequest $request) =>
+         *       $record->get('owner_uuid'),
+         *
+         * The callable must return a string, an integer or null.
+         */
+        'ownerIdResolver' => null,
+
         'Props' => [
             'usersAliasModel' => 'Users',
             'usersModel' => 'Users',
