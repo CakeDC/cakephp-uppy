@@ -32,10 +32,16 @@ class ChangeFileSizeInUppyFilesTable extends AbstractMigration
     /**
      * Restore filesize to the original INT(10) definition from CreateUppyFiles.
      *
+     * Aborts when any row holds a value that would not fit in the original
+     * INT(10) column (see guardAgainstFilesizeOverflow()).
+     *
      * @return void
+     * @throws \RuntimeException When rows with a filesize above the INT range exist.
      */
     public function down(): void
     {
+        $this->guardAgainstFilesizeOverflow();
+
         $this->table('uppy_files')
             ->changeColumn('filesize', 'integer', [
                 'default' => null,
@@ -43,5 +49,34 @@ class ChangeFileSizeInUppyFilesTable extends AbstractMigration
                 'null' => true,
             ])
             ->update();
+    }
+
+    /**
+     * Abort the rollback when filesize values would not fit in the original INT(10).
+     *
+     * `up()` widened the column to BIGINT to support files larger than 2 GB.
+     * Restoring `integer` (INT) would silently truncate any value above the
+     * 32-bit signed maximum (2,147,483,647 bytes). Refuse instead, so the
+     * operator can adjust or remove those rows first.
+     *
+     * @return void
+     * @throws \RuntimeException When rows with filesize > 2 GB exist.
+     */
+    private function guardAgainstFilesizeOverflow(): void
+    {
+        $max = 2147483647;
+        $row = $this->fetchRow(
+            sprintf('SELECT COUNT(*) AS count FROM uppy_files WHERE filesize > %d', $max),
+        );
+        $count = is_array($row) ? (int)($row['count'] ?? 0) : 0;
+        if ($count > 0) {
+            throw new RuntimeException(sprintf(
+                'Refusing to roll back %s: %d row(s) have a filesize greater than %d bytes. '
+                . 'Restoring the integer column would truncate them; adjust or remove those rows first.',
+                static::class,
+                $count,
+                $max,
+            ));
+        }
     }
 }

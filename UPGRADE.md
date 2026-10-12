@@ -8,7 +8,7 @@ This release contains **breaking changes** across PHP configuration, the control
 
 ### 1. Run the new migration
 
-A new index on `uppy_files.user_id` improves query performance for the new ownership checks.
+A new index on `uppy_files.user_id` improves query performance for the new ownership checks. A second migration widens `uppy_files.filesize` to `BIGINT` so files larger than 2 GB are stored correctly; its `down()` **aborts** if any row still holds a value above 2 GB (rolling back would truncate it).
 
 ```bash
 bin/cake migrations migrate -p CakeDC/Uppy
