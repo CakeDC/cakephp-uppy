@@ -58,7 +58,8 @@ return [
          *       $request->getSession()->read('MyCustomAuth.userId'),
          *
          * The callable must return a string, an integer or null. When set, it
-         * is authoritative (null means "no user").
+         * is authoritative: null (or an empty string) means "no user" and the
+         * request is treated as unauthenticated.
          */
         'currentUserIdResolver' => null,
 

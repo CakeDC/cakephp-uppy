@@ -925,6 +925,101 @@ class FilesControllerSecurityTest extends TestCase
         $this->assertCount(2, $body['result']['saved_file_ids']);
     }
 
+    public function testCurrentUserIdResolverReturningEmptyStringBlocksRequest(): void
+    {
+        // An empty string means "no user"; it must not be treated as a valid id
+        // (a session user exists, but the resolver is authoritative).
+        $this->loginAs(1);
+        Configure::write('Uppy.currentUserIdResolver', static fn(ServerRequest $request): string => '');
+
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+        $this->post('/uppy/files/sign', (string)json_encode([
+            'filename' => 'resolver.png',
+            'contentType' => 'image/png',
+        ]));
+
+        $this->assertResponseCode(401);
+        $this->assertSame(401, $this->responseBody()['code']);
+    }
+
+    public function testEmptySessionUserIdBlocksRequest(): void
+    {
+        // An empty Auth.userId is equivalent to being logged out.
+        $this->session(['Auth.userId' => '']);
+
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+        $this->post('/uppy/files/sign', (string)json_encode([
+            'filename' => 'test.png',
+            'contentType' => 'image/png',
+        ]));
+
+        $this->assertResponseCode(401);
+        $this->assertSame(401, $this->responseBody()['code']);
+    }
+
+    public function testEmptyUserIdResolverCannotViewNullOwnerFile(): void
+    {
+        // A file with no owner must not be reachable through an empty user id.
+        $fileId = $this->insertFile(['user_id' => null]);
+        Configure::write('Uppy.currentUserIdResolver', static fn(ServerRequest $request): string => '');
+
+        $this->get('/uppy/files/view/' . $fileId);
+
+        $this->assertResponseCode(401);
+    }
+
+    public function testViewForbidsNullOwnerFileForValidUser(): void
+    {
+        // Even a valid, authenticated user cannot view a file with no owner.
+        $fileId = $this->insertFile(['user_id' => null]);
+        $this->loginAs(1);
+
+        $this->get('/uppy/files/view/' . $fileId);
+
+        $this->assertResponseCode(403);
+    }
+
+    public function testDeleteForbidsNullOwnerFileForValidUser(): void
+    {
+        // A file with no owner cannot be deleted, even by an authenticated user.
+        $fileId = $this->insertFile(['user_id' => null]);
+        $this->loginAs(1);
+
+        $this->delete('/uppy/files/delete/' . $fileId);
+
+        $this->assertResponseCode(403);
+    }
+
+    public function testSaveRejectsNullOwnerRecord(): void
+    {
+        // The related record exists but has no owner (user_id NULL): a valid
+        // user must not be able to attach files to it.
+        $this->connection()->execute('INSERT INTO users (id, user_id) VALUES (3, NULL)');
+
+        $signedKey = 'null-owner.png';
+        $this->session([
+            'Auth.userId' => 1,
+            'Uppy.pendingUploads' => [$signedKey => time()],
+        ]);
+
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/json']]);
+        $this->post('/uppy/files/save', (string)json_encode([
+            'items' => [[
+                'model' => 'Users',
+                'foreign_key' => 3,
+                'filename' => 'test.png',
+                'filesize' => 100,
+                'extension' => 'png',
+                'mime_type' => 'image/png',
+                'path' => $signedKey,
+            ]],
+        ]));
+
+        $body = $this->responseBody();
+        $this->assertTrue($body['result']['error']);
+        $this->assertStringContainsString('not authorized', strtolower($body['result']['message']));
+    }
+
     /** Insert a file row directly and return its ID. */
     protected function insertFile(array $overrides = []): string
     {

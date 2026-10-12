@@ -185,9 +185,11 @@ When saving a file, `save()` now looks up `Uppy.Props.usersModel` to determine t
 
 `FilesController` resolves the current user's id from:
 
-1. `Uppy.currentUserIdResolver` — if set, a callable that receives the `ServerRequest` and returns the user id (`string`/`int`) or `null`. When set it is **authoritative** (a `null` result means "no user").
+1. `Uppy.currentUserIdResolver` — if set, a callable that receives the `ServerRequest` and returns the user id (`string`/`int`) or `null`. When set it is **authoritative** (a `null` or empty-string result means "no user").
 2. The PSR-7 `identity` request attribute, set by `cakephp/authentication` middleware — **the supported source**.
 3. The `Auth.userId` session key, as a fallback. Be aware that **neither `cakephp/authentication`, `AuthComponent` nor CakeDC/Users write this key**: it exists only for applications (and the plugin's own tests) that set it explicitly.
+
+An empty string is normalized to `null` (unauthenticated). This matters because the ownership checks compare `(string)$file->user_id` against `(string)$currentUserId`, and `(string)null === ''`: without this, an empty id would match files whose `user_id` is `NULL`.
 
 If your application does not use `cakephp/authentication` (or stores the identity under a different key), set the resolver in `config/uppy.php`. Otherwise every request is rejected: `sign`, the multipart endpoints and `index` return HTTP **401**, `view()`/`delete()` return HTTP **401** (no user) or **403** (not the owner), and `save()` returns a JSON error with HTTP **200** (`{ "error": true, "message": "You are not authorized to associate files with this record" }`):
 

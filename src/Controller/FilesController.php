@@ -121,7 +121,11 @@ class FilesController extends AppController
      */
     private function normalizeUserId(mixed $value, string $source): string|int|null
     {
-        if ($value === null || is_string($value) || is_int($value)) {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (is_string($value) || is_int($value)) {
             return $value;
         }
 
@@ -192,7 +196,9 @@ class FilesController extends AppController
         if ($currentUserId === null) {
             throw new UnauthorizedException();
         }
-        if ((string)$file->user_id !== (string)$currentUserId) {
+
+        $fileOwnerId = (string)$file->user_id;
+        if ($fileOwnerId === '' || $fileOwnerId !== (string)$currentUserId) {
             throw new ForbiddenException();
         }
 
@@ -305,7 +311,11 @@ class FilesController extends AppController
             $recordOwnerId = $register->{$relation_key};
             $currentUserId = $this->getCurrentUserId();
 
-            if ($currentUserId === null || (string)$recordOwnerId !== (string)$currentUserId) {
+            if (
+                $currentUserId === null ||
+                $recordOwnerId === null ||
+                (string)$recordOwnerId !== (string)$currentUserId
+            ) {
                 $result['error'] = true;
                 $result['message'] = __('You are not authorized to associate files with this record');
                 $this->set('result', $result);
@@ -366,7 +376,9 @@ class FilesController extends AppController
         if ($currentUserId === null) {
             throw new UnauthorizedException();
         }
-        if ((string)$file->user_id !== (string)$currentUserId) {
+
+        $fileOwnerId = (string)$file->user_id;
+        if ($fileOwnerId === '' || $fileOwnerId !== (string)$currentUserId) {
             throw new ForbiddenException();
         }
 
