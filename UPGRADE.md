@@ -302,13 +302,17 @@ The store still lives in the session and is read-modify-written. On a successful
 ],
 ```
 
-The value the resolver returns is compared against the current user id, so it **must resolve to the current user's id** for the check to pass. The related table name is available via `$record->getSource()` when the resolver needs to branch on the record type. **Attaching files to a `Users` record needs the resolver**: the related record is the user itself, and the default would look for a `user_id` column that a users table does not have — return the record's own id:
+The value the resolver returns is compared against the current user id, so it **must resolve to the current user's id** for the check to pass. **Attaching files to a `Users` record needs the resolver**: the related record is the user itself, and the default would look for a `user_id` column that a users table does not have. Because the resolver applies to every table, branch on `$record->getSource()` and only use the record's own id for the users table — other records keep using their `user_id` column:
 
 ```php
 'Uppy' => [
-    'ownerIdResolver' => fn($record) => $record->get('id'),
+    'ownerIdResolver' => fn($record) => $record->getSource() === 'Users'
+        ? $record->get('id')
+        : $record->get('user_id'),
 ],
 ```
+
+The resolver replaces the default for all tables; `getSource()` returns the alias sent as model (e.g. `CakeDC/Users.Users`).
 
 An empty string or `null` means "no owner" and the association is rejected. This lets applications use a differently named owner column, a computed owner, or a shared/admin rule without turning off `Uppy.routes` or writing a custom controller.
 

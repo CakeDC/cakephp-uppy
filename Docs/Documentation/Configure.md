@@ -179,15 +179,17 @@ Applications using a non-standard auth mechanism should set the resolver instead
 
 ### Ownership of the related record (`save`)
 
-`save()` also checks that the record a file is attached to belongs to the current user. By default the owner id is read from the `<Uppy.Props.usersModel>_id` column (e.g. `user_id`) on that record. **Attaching files to a `Users` record therefore needs `Uppy.ownerIdResolver`**: the related record *is* the user, and a users table has no `user_id` column of its own. Set the resolver to return the record's own id:
+`save()` also checks that the record a file is attached to belongs to the current user. By default the owner id is read from the `<Uppy.Props.usersModel>_id` column (e.g. `user_id`) on that record. **Attaching files to a `Users` record therefore needs `Uppy.ownerIdResolver`**: the related record *is* the user, and a users table has no `user_id` column of its own. Because the resolver applies to every table, branch on the record's source so other records keep using their `user_id` column:
 
 ```php
 'Uppy' => [
-    'ownerIdResolver' => fn($record) => $record->get('id'),
+    'ownerIdResolver' => fn($record) => $record->getSource() === 'Users'
+        ? $record->get('id')
+        : $record->get('user_id'),
 ],
 ```
 
-Set `Uppy.ownerIdResolver` for any table whose owner column is not `<usersModel>_id`, or to express a computed or shared owner. The resolver receives the record and the `ServerRequest`; see UPGRADE.md §17 for details.
+Set `Uppy.ownerIdResolver` for any table whose owner column is not `<usersModel>_id`, or to express a computed or shared owner. The resolver replaces the default for all tables; `getSource()` returns the alias sent as model (e.g. `CakeDC/Users.Users`). The resolver receives the record and the `ServerRequest`; see UPGRADE.md §17 for details.
 
 For privileged workflows (e.g., admins accessing files they do not own) the single-user-id resolver is not enough: set `Uppy.routes` to `false` and route `/uppy/files/*` to your own controller (and override the URLs built in `templates/element/assets.php`).
 
