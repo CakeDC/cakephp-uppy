@@ -18,6 +18,8 @@ All endpoints accept `POST` with a JSON body and return JSON.
 | `completeMultipartUpload` | `/uppy/files/complete-multipart-upload` | Finish multipart upload |
 | `abortMultipartUpload` | `/uppy/files/abort-multipart-upload` | Cancel multipart upload |
 
+**Session-bound:** the multipart calls (`signPart`, `completeMultipartUpload`, `abortMultipartUpload`) must come from the same session that created the upload. An `uploadId` that was not created in the current session is rejected with HTTP **403** (`{ "error": true, "code": 403, "message": "Unknown or unauthorized multipart upload" }`).
+
 ### createMultipartUpload
 
 **Request**
@@ -239,6 +241,7 @@ If multipart completion fails with "ETag missing" errors:
 ## Security Considerations
 
 - **Presigned URLs expire:** Part upload URLs expire after `lifeTimeUploadPart` (default: 20 minutes)
+- **Session-bound upload ids:** `signPart`, `completeMultipartUpload` and `abortMultipartUpload` only accept an `uploadId` created in the same session (HTTP 403 otherwise), so another session cannot complete or abort your upload or inject a key
 - **Content type validation:** Server validates MIME types against `AcceptedContentTypes`
 - **File size limits:** Server enforces `MaxFileSize` if configured
 - **UUID-based keys:** Storage keys include UUIDs to prevent collisions and guessing

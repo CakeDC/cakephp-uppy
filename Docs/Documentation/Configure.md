@@ -48,6 +48,12 @@ return [
         // Resolve the current user id (default null = identity → Auth.userId)
         'currentUserIdResolver' => null,
 
+        // Lifetime in seconds of the session upload tokens (default 3600; 0 disables)
+        'pendingUploadsTtl' => 3600,
+
+        // Resolve the owner of the related record in save() (default null = <usersModel>_id)
+        'ownerIdResolver' => null,
+
         'Props' => [
             'usersAliasModel' => 'Users',
             'usersModel' => 'Users',
@@ -149,24 +155,39 @@ In test environments, set `Uppy.S3.config.connection` or `Uppy.R2.config.connect
 2. The `identity` request attribute set by `cakephp/authentication` — the supported source.
 3. The `Auth.userId` session key — **not** written by `cakephp/authentication`, `AuthComponent` or CakeDC/Users; it exists only for applications (and the plugin's tests) that set it explicitly.
 
-Requests without an authenticated user get HTTP **401** (the JSON endpoints return the plugin's `{error, code, message}` envelope); an authenticated user who does not own the record gets HTTP **403**.
+Requests without an authenticated user get HTTP **401** on `sign`, the multipart endpoints, `index`, `view` and `delete` (the JSON endpoints return the plugin's `{error, code, message}` envelope); `save()` returns HTTP **200** with `{ "error": true, ... }` instead. An authenticated user who does not own the record gets HTTP **403**.
 
 Applications using a non-standard auth mechanism should set the resolver instead of subclassing `FilesController` — the plugin routes (`/uppy/files/*`) and the bundled `assets.php` always target `CakeDC/Uppy.Files`, so a subclass is never invoked for them.
 
-```php
-// config/uppy.php
-'Uppy' => [
-    // cakephp/authentication (identity attribute) is the default; no config needed.
+`cakephp/authentication` (the `identity` attribute) is the default and needs no configuration. To use a non-standard source, set `currentUserIdResolver` to one of the following — each is a separate `config/uppy.php`, since an array cannot hold the same key twice:
 
-    // Legacy AuthComponent (session stores Auth.User as an array):
+```php
+// Legacy AuthComponent (session stores Auth.User as an array):
+'Uppy' => [
     'currentUserIdResolver' => fn(\Cake\Http\ServerRequest $request) =>
         $request->getSession()->read('Auth.User.id'),
+],
+```
 
-    // A custom session key:
+```php
+// A custom session key:
+'Uppy' => [
     'currentUserIdResolver' => fn(\Cake\Http\ServerRequest $request) =>
         $request->getSession()->read('MyCustomAuth.userId'),
 ],
 ```
+
+### Ownership of the related record (`save`)
+
+`save()` also checks that the record a file is attached to belongs to the current user. By default the owner id is read from the `<Uppy.Props.usersModel>_id` column (e.g. `user_id`) on that record. **Attaching files to a `Users` record therefore needs `Uppy.ownerIdResolver`**: the related record *is* the user, and a users table has no `user_id` column of its own. Set the resolver to return the record's own id:
+
+```php
+'Uppy' => [
+    'ownerIdResolver' => fn($record) => $record->get('id'),
+],
+```
+
+Set `Uppy.ownerIdResolver` for any table whose owner column is not `<usersModel>_id`, or to express a computed or shared owner. The resolver receives the record and the `ServerRequest`; see UPGRADE.md §17 for details.
 
 For privileged workflows (e.g., admins accessing files they do not own) the single-user-id resolver is not enough: set `Uppy.routes` to `false` and route `/uppy/files/*` to your own controller (and override the URLs built in `templates/element/assets.php`).
 
