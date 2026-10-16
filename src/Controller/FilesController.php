@@ -14,7 +14,11 @@ namespace CakeDC\Uppy\Controller;
 
 use Aws\Exception\AwsException;
 use Cake\Core\Configure;
+use Cake\Database\Exception\DatabaseException;
+use Cake\Datasource\EntityInterface;
 use Cake\Datasource\Exception\RecordNotFoundException;
+use Cake\Http\Exception\ForbiddenException;
+use Cake\Http\Exception\UnauthorizedException;
 use Cake\Http\Response;
 use Cake\ORM\Exception\MissingTableClassException;
 use Cake\Utility\Inflector;
@@ -24,6 +28,7 @@ use CakeDC\Uppy\Storage\MultipartUploadAdapterInterface;
 use CakeDC\Uppy\Storage\StorageAdapterInterface;
 use InvalidArgumentException;
 use UnexpectedValueException;
+use function Cake\Collection\collection;
 use function Cake\I18n\__;
 
 /**
@@ -59,15 +64,148 @@ class FilesController extends AppController
         if (!$this->components()->has('FormProtection')) {
             $this->loadComponent('FormProtection');
         }
-        $this->FormProtection->setConfig('unlockedActions', self::UPLOAD_SIGNING_ACTIONS);
+        $this->FormProtection->setConfig('unlockedActions', [
+            ...self::UPLOAD_SIGNING_ACTIONS,
+            'delete',
+        ]);
+        if (!$this->components()->has('Flash')) {
+            $this->loadComponent('Flash');
+        }
+    }
+
+    /**
+     * Returns the current authenticated user's identifier.
+     *
+     * Resolution order:
+     *
+     * 1. `Uppy.currentUserIdResolver` — a callable that receives the
+     *    `ServerRequest` and returns a string, an integer or null. When set, it
+     *    is authoritative (a null result means "no user") and lets applications
+     *    with non-standard auth resolve the id without subclassing.
+     * 2. The PSR-7 'identity' request attribute set by the
+     *    cakephp/authentication middleware.
+     * 3. The 'Auth.userId' session key, which is not written by the standard
+     *    auth components and exists only for applications (and tests) that set
+     *    it explicitly.
+     *
+     * @return string|int|null
+     * @throws \UnexpectedValueException When the resolved value is not a string, an integer or null.
+     */
+    protected function getCurrentUserId(): string|int|null
+    {
+        $resolver = Configure::read('Uppy.currentUserIdResolver');
+        if (is_callable($resolver)) {
+            return $this->normalizeUserId($resolver($this->getRequest()), 'Uppy.currentUserIdResolver');
+        }
+
+        $identity = $this->getRequest()->getAttribute('identity');
+        if ($identity !== null) {
+            return $this->normalizeUserId($identity->getIdentifier(), 'the authentication identity');
+        }
+
+        return $this->normalizeUserId(
+            $this->getRequest()->getSession()->read('Auth.userId'),
+            'the Auth.userId session key',
+        );
+    }
+
+    /**
+     * Validate a resolved user id.
+     *
+     * Guards against malformed session/identity values so a misconfiguration
+     * surfaces as a clear exception instead of an opaque TypeError.
+     *
+     * @param mixed $value Resolved value.
+     * @param string $source Human-readable source, used in the error message.
+     * @return string|int|null
+     * @throws \UnexpectedValueException When the value is not a string, an integer or null.
+     */
+    private function normalizeUserId(mixed $value, string $source): string|int|null
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (is_string($value) || is_int($value)) {
+            return $value;
+        }
+
+        throw new UnexpectedValueException(
+            __('The user id from {0} must be a string, an integer or null.', $source),
+        );
+    }
+
+    /**
+     * Resolve the owner id of a related record for the `save()` ownership check.
+     *
+     * Uses `Uppy.ownerIdResolver` when set (a callable receiving the related
+     * record and the `ServerRequest` and returning the owner id), otherwise the
+     * conventional `<usersModel>_id` column. An empty string is treated as no
+     * owner.
+     *
+     * @param \Cake\Datasource\EntityInterface $record Related record being associated.
+     * @return string|int|null
+     * @throws \UnexpectedValueException When the resolved value is not a string, an integer or null.
+     */
+    private function resolveRecordOwnerId(EntityInterface $record): string|int|null
+    {
+        $resolver = Configure::read('Uppy.ownerIdResolver');
+        if (is_callable($resolver)) {
+            return $this->normalizeUserId($resolver($record, $this->getRequest()), 'Uppy.ownerIdResolver');
+        }
+
+        $model = Configure::readOrFail('Uppy.Props.usersModel');
+        $relationKey = Inflector::singularize(mb_strtolower($model)) . '_id';
+
+        return $this->normalizeUserId($record->get($relationKey), $relationKey);
+    }
+
+    /**
+     * Return the authenticated user's identifier or abort the request.
+     *
+     * @return string|int
+     * @throws \Cake\Http\Exception\UnauthorizedException When no user is authenticated.
+     */
+    protected function requireCurrentUserId(): string|int
+    {
+        $currentUserId = $this->getCurrentUserId();
+        if ($currentUserId === null) {
+            throw new UnauthorizedException();
+        }
+
+        return $currentUserId;
+    }
+
+    /**
+     * Return a JSON 401 envelope when there is no authenticated user.
+     *
+     * The JSON endpoints use the plugin's response envelope instead of the
+     * framework's error format so the bundled JavaScript can report it.
+     *
+     * @return \Cake\Http\Response|null Response to send, or null when authenticated.
+     */
+    protected function unauthenticatedJsonResponse(): ?Response
+    {
+        if ($this->getCurrentUserId() !== null) {
+            return null;
+        }
+
+        return $this->jsonResponse([
+            'error' => true,
+            'code' => 401,
+            'message' => __('Authentication is required.'),
+        ], 401);
     }
 
     /**
      * Index method
+     *
+     * Lists only the files owned by the authenticated user.
      */
     public function index(): void
     {
-        $files = $this->paginate($this->Files);
+        $currentUserId = $this->requireCurrentUserId();
+        $files = $this->paginate($this->Files->find()->where(['user_id' => $currentUserId]));
 
         $this->set(compact('files'));
     }
@@ -79,6 +217,16 @@ class FilesController extends AppController
     {
         /** @var \CakeDC\Uppy\Model\Entity\File $file */
         $file = $this->Files->get($id);
+
+        $currentUserId = $this->getCurrentUserId();
+        if ($currentUserId === null) {
+            throw new UnauthorizedException();
+        }
+
+        $fileOwnerId = (string)$file->user_id;
+        if ($fileOwnerId === '' || $fileOwnerId !== (string)$currentUserId) {
+            throw new ForbiddenException();
+        }
 
         $presignedUrl = $this->storageAdapter->presignedUrl($file->path ?? '');
 
@@ -99,9 +247,46 @@ class FilesController extends AppController
 
         $items = $this->getRequest()->getData('items');
 
+        if (!is_array($items) || $items === []) {
+            $result = [
+                'error' => true,
+                'message' => __('items must be a non-empty array'),
+            ];
+            $this->set('result', $result);
+            $this->viewBuilder()->setOption('serialize', ['result']);
+
+            return;
+        }
+
         $files = [];
         $result = [];
+        $session = $this->getRequest()->getSession();
+        // Snapshot of the valid (non-expired) session tokens; expired ones are
+        // pruned on read. The snapshot is a working copy: consumed tokens are
+        // removed from the live session only after a successful save, so a failed
+        // batch can be retried without orphaning the objects already uploaded.
+        $pendingBefore = $this->readPendingUploads();
+        $remainingUploads = $pendingBefore;
         foreach ($items as $item) {
+            if (!is_array($item)) {
+                $result['error'] = true;
+                $result['message'] = __('each item must be an object');
+                $this->set('result', $result);
+                $this->viewBuilder()->setOption('serialize', ['result']);
+
+                return;
+            }
+            $path = isset($item['path']) && is_string($item['path']) ? $item['path'] : null;
+            if ($path === null || $path === '' || !array_key_exists($path, $remainingUploads)) {
+                $result['error'] = true;
+                $result['message'] = __('Invalid or unrecognized file path');
+                $this->set('result', $result);
+                $this->viewBuilder()->setOption('serialize', ['result']);
+
+                return;
+            }
+            // Mark the token as used for this batch (one-time use).
+            unset($remainingUploads[$path]);
             $tableAlias = isset($item['model']) ? (string)$item['model'] : '';
             if ($tableAlias === '') {
                 $result['error'] = true;
@@ -139,21 +324,61 @@ class FilesController extends AppController
                 $this->viewBuilder()->setOption('serialize', ['result']);
 
                 return;
+            // @phpstan-ignore-next-line DatabaseException is thrown by the ORM when the table cannot be described.
+            } catch (DatabaseException) {
+                $result['error'] = true;
+                $result['message'] = __('Could not retrieve record with id {0} from {1}', $foreignKey, $tableAlias);
+                $this->set('result', $result);
+                $this->viewBuilder()->setOption('serialize', ['result']);
+
+                return;
             }
-            $file = $this->Files->newEntity($item);
-            $file->filename = $item['filename'];
-            $file->filesize = $item['filesize'];
-            $file->extension = $item['extension'];
-            $model = Configure::readOrFail('Uppy.Props.usersModel');
-            $relation_key = Inflector::singularize(mb_strtolower($model)) . '_id';
-            $file->user_id = $register->{$relation_key};
+            // Verify the related record belongs to the current user. The owner
+            // id comes from Uppy.ownerIdResolver when set, otherwise from the
+            // conventional `<usersModel>_id` column.
+            $recordOwnerId = $this->resolveRecordOwnerId($register);
+            $currentUserId = $this->getCurrentUserId();
+
+            if (
+                $currentUserId === null ||
+                $recordOwnerId === null ||
+                (string)$recordOwnerId !== (string)$currentUserId
+            ) {
+                $result['error'] = true;
+                $result['message'] = __('You are not authorized to associate files with this record');
+                $this->set('result', $result);
+                $this->viewBuilder()->setOption('serialize', ['result']);
+
+                return;
+            }
+
+            $file = $this->Files->newEntity($item, ['associated' => []]);
+            $file->filename = isset($item['filename']) ? (string)$item['filename'] : null;
+            $file->filesize = isset($item['filesize']) ? (int)$item['filesize'] : null;
+            $file->extension = isset($item['extension']) ? (string)$item['extension'] : null;
+            $file->user_id = (string)$recordOwnerId; // already verified non-null above
             $file->model = $tableAlias;
+            $file->path = $path; // server-validated path (from session token)
             $files[] = $file;
         }
 
-        if ($this->Files->saveMany($files) !== false) {
+        $savedFiles = $this->Files->saveMany($files);
+        if ($savedFiles !== false) {
+            // Commit the consumed one-time tokens only after a successful save.
+            // Re-read the store right before writing and remove only the tokens
+            // consumed by this batch, so a token registered concurrently by a
+            // sign()/multipart request during saveMany() is not lost, and a used
+            // token cannot be brought back. Full atomicity still requires a
+            // locking session handler (see UPGRADE.md).
+            $consumedKeys = array_keys(array_diff_key($pendingBefore, $remainingUploads));
+            $sessionTokens = (array)$session->read('Uppy.pendingUploads', []);
+            foreach ($consumedKeys as $consumedKey) {
+                unset($sessionTokens[$consumedKey]);
+            }
+            $session->write('Uppy.pendingUploads', $sessionTokens);
             $result['error'] = false;
             $result['message'] = __('The association has been be saved correctly');
+            $result['saved_file_ids'] = collection($savedFiles)->extract('id')->toArray();
         } else {
             $result['error'] = true;
             $result['message'] = __('The association to file could not be saved');
@@ -184,6 +409,17 @@ class FilesController extends AppController
     {
         $this->getRequest()->allowMethod(['post', 'delete']);
         $file = $this->Files->get($id);
+
+        $currentUserId = $this->getCurrentUserId();
+        if ($currentUserId === null) {
+            throw new UnauthorizedException();
+        }
+
+        $fileOwnerId = (string)$file->user_id;
+        if ($fileOwnerId === '' || $fileOwnerId !== (string)$currentUserId) {
+            throw new ForbiddenException();
+        }
+
         if ($this->Files->delete($file)) {
             $this->Flash->success(__('The file has been deleted.'));
         } else {
@@ -203,6 +439,10 @@ class FilesController extends AppController
     public function sign(): Response
     {
         $this->getRequest()->allowMethod('post');
+        $unauthenticated = $this->unauthenticatedJsonResponse();
+        if ($unauthenticated !== null) {
+            return $unauthenticated;
+        }
 
         $filename = $this->getRequest()->getData('filename');
         if ($filename === null || $filename === '') {
@@ -242,6 +482,9 @@ class FilesController extends AppController
             $this->getRequest()->getData('prefix') ? (string)$this->getRequest()->getData('prefix') : null,
         );
 
+        // Store the generated key in session so save() can verify it was server-issued.
+        $this->rememberPendingUpload($storageKey);
+
         $presignedRequest = $this->storageAdapter->createPresignedRequest($storageKey, $contentType);
 
         return $this->jsonResponse([
@@ -278,6 +521,10 @@ class FilesController extends AppController
     public function createMultipartUpload(): Response
     {
         $this->getRequest()->allowMethod('post');
+        $unauthenticated = $this->unauthenticatedJsonResponse();
+        if ($unauthenticated !== null) {
+            return $unauthenticated;
+        }
 
         if (!$this->storageAdapter instanceof MultipartUploadAdapterInterface) {
             return $this->jsonResponse([
@@ -300,6 +547,10 @@ class FilesController extends AppController
             return $this->s3ErrorResponse($exception);
         }
 
+        // Remember the server-issued pair so signPart()/completeMultipartUpload()/
+        // abortMultipartUpload() can verify the upload belongs to this session.
+        $this->rememberMultipartUpload($result['uploadId'], $result['key']);
+
         return $this->jsonResponse([
             'error' => false,
             'code' => 200,
@@ -316,6 +567,10 @@ class FilesController extends AppController
     public function signPart(): Response
     {
         $this->getRequest()->allowMethod('post');
+        $unauthenticated = $this->unauthenticatedJsonResponse();
+        if ($unauthenticated !== null) {
+            return $unauthenticated;
+        }
 
         if (!$this->storageAdapter instanceof MultipartUploadAdapterInterface) {
             return $this->jsonResponse([
@@ -339,6 +594,10 @@ class FilesController extends AppController
                 'code' => 400,
                 'message' => __('uploadId, key, and partNumber are required'),
             ], 400);
+        }
+
+        if (!$this->isKnownMultipartUpload((string)$uploadId, (string)$key)) {
+            return $this->unknownMultipartUploadResponse();
         }
 
         try {
@@ -367,6 +626,10 @@ class FilesController extends AppController
     public function completeMultipartUpload(): Response
     {
         $this->getRequest()->allowMethod('post');
+        $unauthenticated = $this->unauthenticatedJsonResponse();
+        if ($unauthenticated !== null) {
+            return $unauthenticated;
+        }
 
         if (!$this->storageAdapter instanceof MultipartUploadAdapterInterface) {
             return $this->jsonResponse([
@@ -399,15 +662,27 @@ class FilesController extends AppController
             }
         }
 
+        // The upload must belong to this session; use the server-issued key.
+        $knownKey = $this->multipartUploadKey((string)$uploadId);
+        if ($knownKey === null || $knownKey !== (string)$key) {
+            return $this->unknownMultipartUploadResponse();
+        }
+
         try {
             $result = $this->storageAdapter->completeMultipartUpload(
-                (string)$key,
+                $knownKey,
                 (string)$uploadId,
                 $parts,
             );
         } catch (AwsException $exception) {
             return $this->s3ErrorResponse($exception);
         }
+
+        // Register the server-issued key (not the client-supplied one) so the
+        // follow-up save() accepts it as a server-issued path, then drop the
+        // multipart entry (one-time).
+        $this->rememberPendingUpload($knownKey);
+        $this->forgetMultipartUpload((string)$uploadId);
 
         return $this->jsonResponse([
             'error' => false,
@@ -425,6 +700,10 @@ class FilesController extends AppController
     public function abortMultipartUpload(): Response
     {
         $this->getRequest()->allowMethod('post');
+        $unauthenticated = $this->unauthenticatedJsonResponse();
+        if ($unauthenticated !== null) {
+            return $unauthenticated;
+        }
 
         if (!$this->storageAdapter instanceof MultipartUploadAdapterInterface) {
             return $this->jsonResponse([
@@ -445,6 +724,10 @@ class FilesController extends AppController
             ], 400);
         }
 
+        if (!$this->isKnownMultipartUpload((string)$uploadId, (string)$key)) {
+            return $this->unknownMultipartUploadResponse();
+        }
+
         try {
             $this->storageAdapter->abortMultipartUpload(
                 (string)$key,
@@ -454,10 +737,147 @@ class FilesController extends AppController
             return $this->s3ErrorResponse($exception);
         }
 
+        $this->forgetMultipartUpload((string)$uploadId);
+
         return $this->jsonResponse([
             'error' => false,
             'code' => 200,
         ]);
+    }
+
+    /**
+     * Register a server-issued storage key as a pending upload for this session.
+     *
+     * `save()` only accepts paths issued by the server in the same session and
+     * consumes them one-time. Both `sign()` and `completeMultipartUpload()`
+     * register their keys here.
+     *
+     * @param string $key Storage key issued by the server.
+     * @return void
+     */
+    private function rememberPendingUpload(string $key): void
+    {
+        $session = $this->getRequest()->getSession();
+        $pending = $this->readPendingUploads();
+        $pending[$key] = time();
+        $session->write('Uppy.pendingUploads', $pending);
+    }
+
+    /**
+     * Remember a server-issued multipart upload id and its storage key.
+     *
+     * The pair is kept in the session so signPart()/completeMultipartUpload()/
+     * abortMultipartUpload() can verify the upload belongs to the session that
+     * created it, instead of trusting the client-supplied uploadId/key.
+     *
+     * @param string $uploadId Multipart upload id issued by the storage adapter.
+     * @param string $key Storage key issued by the server for this upload.
+     * @return void
+     */
+    private function rememberMultipartUpload(string $uploadId, string $key): void
+    {
+        $session = $this->getRequest()->getSession();
+        $uploads = (array)$session->read('Uppy.multipartUploads', []);
+        $uploads[$uploadId] = $key;
+        $session->write('Uppy.multipartUploads', $uploads);
+    }
+
+    /**
+     * Return the storage key registered for a multipart upload id, if any.
+     *
+     * @param string $uploadId Multipart upload id supplied by the client.
+     * @return string|null The server-issued key, or null when unknown.
+     */
+    private function multipartUploadKey(string $uploadId): ?string
+    {
+        $uploads = (array)$this->getRequest()->getSession()->read('Uppy.multipartUploads', []);
+        $key = $uploads[$uploadId] ?? null;
+
+        return is_string($key) ? $key : null;
+    }
+
+    /**
+     * Drop a multipart upload id from the session store.
+     *
+     * @param string $uploadId Multipart upload id.
+     * @return void
+     */
+    private function forgetMultipartUpload(string $uploadId): void
+    {
+        $session = $this->getRequest()->getSession();
+        $uploads = (array)$session->read('Uppy.multipartUploads', []);
+        unset($uploads[$uploadId]);
+        $session->write('Uppy.multipartUploads', $uploads);
+    }
+
+    /**
+     * Whether the client-supplied uploadId/key match a server-issued upload.
+     *
+     * @param string $uploadId Client-supplied multipart upload id.
+     * @param string $key Client-supplied storage key.
+     * @return bool
+     */
+    private function isKnownMultipartUpload(string $uploadId, string $key): bool
+    {
+        $knownKey = $this->multipartUploadKey($uploadId);
+
+        return $knownKey !== null && $knownKey === $key;
+    }
+
+    /**
+     * JSON 403 for a multipart upload id/key that is not in this session.
+     *
+     * @return \Cake\Http\Response
+     */
+    private function unknownMultipartUploadResponse(): Response
+    {
+        return $this->jsonResponse([
+            'error' => true,
+            'code' => 403,
+            'message' => __('Unknown or unauthorized multipart upload'),
+        ], 403);
+    }
+
+    /**
+     * Read the pending-upload tokens, dropping the expired ones.
+     *
+     * Expiry is controlled by `Uppy.pendingUploadsTtl` (seconds; 0 or a
+     * negative value disables it). The pruned store is written back only when
+     * something was dropped.
+     *
+     * @return array<string, int> Valid tokens keyed by storage key.
+     */
+    private function readPendingUploads(): array
+    {
+        $session = $this->getRequest()->getSession();
+        $pending = (array)$session->read('Uppy.pendingUploads', []);
+        $pruned = $this->prunePendingUploads($pending);
+        if ($pruned !== $pending) {
+            $session->write('Uppy.pendingUploads', $pruned);
+        }
+
+        return $pruned;
+    }
+
+    /**
+     * Drop tokens older than the configured TTL.
+     *
+     * @param array<string, int> $pending Tokens keyed by storage key.
+     * @return array<string, int> Tokens still within the TTL.
+     */
+    private function prunePendingUploads(array $pending): array
+    {
+        $ttl = (int)Configure::read('Uppy.pendingUploadsTtl', 3600);
+        if ($ttl <= 0) {
+            return $pending;
+        }
+
+        $now = time();
+
+        return array_filter(
+            $pending,
+            static fn(int $timestamp): bool => $now - $timestamp <= $ttl,
+        );
     }
 
     /**

@@ -11,8 +11,8 @@ The **Uppy** plugin covers the following features:
 Requirements
 ------------
 
-* CakePHP 5.0+
-* PHP 8.1+
+* CakePHP 5.1+
+* PHP 8.2+
 
 Configuration
 -------------
@@ -23,6 +23,7 @@ You must configure the connection parameters for your storage backend in `config
 return [
     'Uppy' => [
         'driver' => 's3', // 's3' | 'gcs' | 'r2'
+        'routes' => true, // Register the /uppy/* routes (default true)
         'MaxFileSize' => null, // Maximum file size in bytes, null = no limit
         'MultipartThreshold' => 104857600, // 100 MiB - use multipart for files above this size
         'AcceptedContentTypes' => ['application/pdf', 'image/png', ...],
@@ -49,6 +50,7 @@ return [
 ```
 
 **Configuration Options:**
+- `routes` - When `true` (default) the plugin registers only its known `/uppy/*` endpoints (`sign`, `save`, the multipart endpoints, `view`, `delete`, `index`), available in production regardless of `debug`; the demo pages (`add`, `drag`) are registered only when `debug` is on. Set to `false` to disable the endpoints entirely. `sign`, the multipart endpoints and `index` require an authenticated user (HTTP 401 otherwise); `view`, `delete` and `save` enforce ownership. Protect them with authentication.
 - `MaxFileSize` - Optional maximum upload size in bytes; when set, `filesize` in sign/create requests is validated server-side (`null` = no limit)
 - `MultipartThreshold` - File size in bytes above which the client should use multipart upload (default 100 MiB); exposed to the browser via `UppyHelper::getUploadConfig()` and `window.UppyUploadConfig`
 - `AcceptedContentTypes` - List of MIME types allowed for storage in S3 and saved in database
@@ -61,7 +63,7 @@ return [
 Endpoints
 ---------
 
-The plugin provides the following API endpoints:
+The plugin provides the following API endpoints (registered by default — see `Uppy.routes`). `sign`, the multipart endpoints and `index` require an authenticated user (HTTP 401 otherwise); `view`, `delete` and `save` enforce ownership. Protect them with authentication in production:
 
 **Simple Uploads:**
 - `/uppy/files/sign` - Generate presigned PUT URL for direct browser-to-S3 upload (small files)
@@ -88,7 +90,7 @@ For documentation, as well as tutorials, see the [Docs](Docs/Home.md) directory 
 Support
 -------
 
-For bugs and feature requests, please use the [issues](https://github.com/CakeDC/cakephp-inertia/issues) section of this repository.
+For bugs and feature requests, please use the [issues](https://github.com/CakeDC/cakephp-uppy/issues) section of this repository.
 
 Commercial support is also available, [contact us](https://www.cakedc.com/contact) for more information.
 

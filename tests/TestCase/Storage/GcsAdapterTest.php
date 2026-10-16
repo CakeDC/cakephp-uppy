@@ -12,13 +12,14 @@ use Google\Cloud\Core\Exception\NotFoundException;
 use Google\Cloud\Storage\Bucket;
 use Google\Cloud\Storage\StorageClient;
 use Google\Cloud\Storage\StorageObject;
+use PHPUnit\Framework\MockObject\MockObject;
 use Psr\Http\Message\RequestInterface;
 
 class GcsAdapterTest extends TestCase
 {
-    private StorageClient $mockClient;
-    private Bucket $mockBucket;
-    private StorageObject $mockObject;
+    private StorageClient&MockObject $mockClient;
+    private Bucket&MockObject $mockBucket;
+    private StorageObject&MockObject $mockObject;
 
     protected function setUp(): void
     {

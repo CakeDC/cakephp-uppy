@@ -1,0 +1,588 @@
+<?php
+declare(strict_types=1);
+
+namespace CakeDC\Uppy\Test\TestCase\Util;
+
+use Aws\Exception\AwsException;
+use Aws\Result;
+use Aws\S3\S3Client;
+use Cake\Core\Configure;
+use Cake\TestSuite\TestCase;
+use CakeDC\Uppy\Test\TestSuite\AwsStubS3Client;
+use CakeDC\Uppy\Util\S3Trait;
+use Exception;
+use Psr\Http\Message\RequestInterface;
+
+class S3TraitSecurityTest extends TestCase
+{
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Configure::write('Uppy.S3', [
+            'constants' => [
+                'lifeTimeGetObject' => '+20 minutes',
+                'lifeTimePutObject' => '+5 minutes',
+            ],
+            'config' => [
+                'version' => 'latest',
+                'region' => 'us-east-1',
+                'connection' => 'dummy',
+                'credentials' => ['key' => 'fake', 'secret' => 'fake'],
+            ],
+            'bucket' => 'test-bucket',
+        ]);
+    }
+
+    protected function tearDown(): void
+    {
+        Configure::delete('Uppy.S3');
+        parent::tearDown();
+    }
+
+    public function testPresignedUrlReadsConstantsKey(): void
+    {
+        // Only constants key set — contants key absent — must not throw
+        Configure::write('Uppy.S3.constants', [
+            'lifeTimeGetObject' => '+20 minutes',
+            'lifeTimePutObject' => '+5 minutes',
+        ]);
+        Configure::delete('Uppy.S3.contants');
+
+        $subject = new class {
+            use S3Trait;
+
+            public function callPresignedUrl(string $path, string $name): string
+            {
+                return $this->presignedUrl($path, $name);
+            }
+        };
+
+        // dummy connection returns 'https://example.com'
+        $url = $subject->callPresignedUrl('uuid-test.png', 'test.png');
+        $this->assertSame('https://example.com', $url);
+    }
+
+    public function testCreatePresignedRequestReadsConstantsKey(): void
+    {
+        Configure::write('Uppy.S3.constants', [
+            'lifeTimeGetObject' => '+20 minutes',
+            'lifeTimePutObject' => '+5 minutes',
+        ]);
+        Configure::delete('Uppy.S3.contants');
+
+        $subject = new class {
+            use S3Trait;
+
+            public function callCreatePresignedRequest(string $path, string $ct): RequestInterface
+            {
+                return $this->createPresignedRequest($path, $ct);
+            }
+        };
+
+        $req = $subject->callCreatePresignedRequest('uuid-test.png', 'image/png');
+        $this->assertSame('https://example.com', (string)$req->getUri());
+    }
+
+    public function testFolderExistsThrowsWhenContentsEmpty(): void
+    {
+        $mockClient = $this->getMockBuilder(AwsStubS3Client::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['listObjectsV2'])
+            ->getMock();
+        $mockClient->method('listObjectsV2')->willReturn(new Result([
+            'Contents' => [],
+        ]));
+
+        // Override makeS3Client() so the real folderExists() uses the mock — no AWS calls made
+        $subject = new class ($mockClient) {
+            use S3Trait;
+
+            public function __construct(private readonly S3Client $injectedClient)
+            {
+            }
+
+            protected function makeS3Client(): S3Client
+            {
+                return $this->injectedClient;
+            }
+        };
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage("Folder doesn't exist");
+        $subject->folderExists('some/path/');
+    }
+
+    public function testFolderExistsReturnsTrueWhenContentsNonEmpty(): void
+    {
+        $mockClient = $this->getMockBuilder(AwsStubS3Client::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['listObjectsV2'])
+            ->getMock();
+        $mockClient->method('listObjectsV2')->willReturn(new Result([
+            'Contents' => [['Key' => 'some/path/file.txt']],
+        ]));
+
+        // Override makeS3Client() so the real folderExists() uses the mock — no AWS calls made
+        $subject = new class ($mockClient) {
+            use S3Trait;
+
+            public function __construct(private readonly S3Client $injectedClient)
+            {
+            }
+
+            protected function makeS3Client(): S3Client
+            {
+                return $this->injectedClient;
+            }
+        };
+
+        $this->assertTrue($subject->folderExists('some/path/'));
+    }
+
+    // ── uploadFile ────────────────────────────────────────────────────────────
+
+    public function testUploadFileThrowsWhenMetadataMissing(): void
+    {
+        $mockClient = $this->getMockBuilder(AwsStubS3Client::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['putObject'])
+            ->getMock();
+        $mockClient->method('putObject')->willReturn(new Result([])); // no @metadata
+
+        $subject = new class ($mockClient) {
+            use S3Trait;
+
+            public function __construct(private readonly S3Client $injectedClient)
+            {
+            }
+
+            protected function makeS3Client(): S3Client
+            {
+                return $this->injectedClient;
+            }
+
+            public function callUploadFile(string $src, string $dst): void
+            {
+                $this->uploadFile($src, $dst);
+            }
+        };
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('Error on response data');
+        $subject->callUploadFile('/any/path', 'destination/path');
+    }
+
+    public function testUploadFileThrowsWhenStatusNot200(): void
+    {
+        $mockClient = $this->getMockBuilder(AwsStubS3Client::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['putObject'])
+            ->getMock();
+        $mockClient->method('putObject')->willReturn(new Result(['@metadata' => ['statusCode' => 500]]));
+
+        $subject = new class ($mockClient) {
+            use S3Trait;
+
+            public function __construct(private readonly S3Client $injectedClient)
+            {
+            }
+
+            protected function makeS3Client(): S3Client
+            {
+                return $this->injectedClient;
+            }
+
+            public function callUploadFile(string $src, string $dst): void
+            {
+                $this->uploadFile($src, $dst);
+            }
+        };
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('Error coping/moving file');
+        $subject->callUploadFile('/any/path', 'destination/path');
+    }
+
+    public function testUploadFileSucceedsWithValidResponse(): void
+    {
+        $mockClient = $this->getMockBuilder(AwsStubS3Client::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['putObject'])
+            ->getMock();
+        $mockClient->method('putObject')->willReturn(new Result(['@metadata' => ['statusCode' => 200]]));
+
+        $subject = new class ($mockClient) {
+            use S3Trait;
+
+            public function __construct(private readonly S3Client $injectedClient)
+            {
+            }
+
+            protected function makeS3Client(): S3Client
+            {
+                return $this->injectedClient;
+            }
+
+            public function callUploadFile(string $src, string $dst): void
+            {
+                $this->uploadFile($src, $dst);
+            }
+        };
+
+        $subject->callUploadFile('/any/path', 'destination/path');
+        $this->assertTrue(true); // no exception thrown
+    }
+
+    public function testDeleteObjectReturnsTrueInDummyMode(): void
+    {
+        Configure::write('Uppy.S3.config.connection', 'dummy');
+
+        $subject = new class {
+            use S3Trait;
+
+            public function callDeleteObject(?string $path, ?string $name): bool
+            {
+                return $this->deleteObject($path, $name);
+            }
+        };
+
+        $this->assertTrue($subject->callDeleteObject('some-path.png', 'photo.png'));
+        $this->assertTrue($subject->callDeleteObject(null, null));
+    }
+
+    // ── setPublicPermissions ──────────────────────────────────────────────────
+
+    public function testSetPublicPermissionsCallsPutObjectAclWithCorrectParams(): void
+    {
+        $mockClient = $this->getMockBuilder(AwsStubS3Client::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['putObjectAcl'])
+            ->getMock();
+        $mockClient->expects($this->once())
+            ->method('putObjectAcl')
+            ->with([
+                'Bucket' => 'test-bucket',
+                'Key' => 'path/to/file.jpg',
+                'ACL' => 'public-read',
+            ])
+            ->willReturn(new Result([]));
+
+        $subject = new class ($mockClient) {
+            use S3Trait;
+
+            public function __construct(private readonly S3Client $injectedClient)
+            {
+            }
+
+            protected function makeS3Client(): S3Client
+            {
+                return $this->injectedClient;
+            }
+        };
+
+        $subject->setPublicPermissions('path/to/file.jpg');
+        $this->assertTrue(true); // no exception thrown
+    }
+
+    // ── listFilesWithUrls ─────────────────────────────────────────────────────
+
+    public function testListFilesWithUrlsReturnsObjectsWithPresignedUrls(): void
+    {
+        $mockClient = $this->getMockBuilder(AwsStubS3Client::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['listObjectsV2'])
+            ->getMock();
+        $mockClient->method('listObjectsV2')->willReturn(new Result([
+            'Contents' => [
+                ['Key' => 'folder/file.jpg', 'Size' => 1024],
+                ['Key' => 'folder/other.png', 'Size' => 2048],
+            ],
+        ]));
+
+        $subject = new class ($mockClient) {
+            use S3Trait;
+
+            public function __construct(private readonly S3Client $injectedClient)
+            {
+            }
+
+            protected function makeS3Client(): S3Client
+            {
+                return $this->injectedClient;
+            }
+        };
+
+        // dummy connection → presignedUrl() returns 'https://example.com' without real AWS call
+        $result = $subject->listFilesWithUrls();
+        $this->assertCount(2, $result);
+        $this->assertSame('folder/file.jpg', $result[0]['Key']);
+        $this->assertArrayHasKey('presigned_url', $result[0]);
+        $this->assertSame('https://example.com', $result[0]['presigned_url']);
+        $this->assertArrayHasKey('presigned_url', $result[1]);
+    }
+
+    public function testListFilesWithUrlsReturnsEmptyArrayWhenNoContents(): void
+    {
+        $mockClient = $this->getMockBuilder(AwsStubS3Client::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['listObjectsV2'])
+            ->getMock();
+        $mockClient->method('listObjectsV2')->willReturn(new Result(['Contents' => null]));
+
+        $subject = new class ($mockClient) {
+            use S3Trait;
+
+            public function __construct(private readonly S3Client $injectedClient)
+            {
+            }
+
+            protected function makeS3Client(): S3Client
+            {
+                return $this->injectedClient;
+            }
+        };
+
+        $this->assertSame([], $subject->listFilesWithUrls());
+    }
+
+    public function testListFilesWithUrlsPassesPrefixAndMaxKeys(): void
+    {
+        $mockClient = $this->getMockBuilder(AwsStubS3Client::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['listObjectsV2'])
+            ->getMock();
+        $mockClient->expects($this->once())
+            ->method('listObjectsV2')
+            ->with([
+                'Bucket' => 'test-bucket',
+                'MaxKeys' => 50,
+                'Prefix' => 'uploads/',
+            ])
+            ->willReturn(new Result(['Contents' => null]));
+
+        $subject = new class ($mockClient) {
+            use S3Trait;
+
+            public function __construct(private readonly S3Client $injectedClient)
+            {
+            }
+
+            protected function makeS3Client(): S3Client
+            {
+                return $this->injectedClient;
+            }
+        };
+
+        $subject->listFilesWithUrls('uploads/', 50);
+        $this->assertTrue(true); // assertion is on the mock expectation above
+    }
+
+    public function testListFilesWithUrlsOmitsPrefixWhenEmpty(): void
+    {
+        $mockClient = $this->getMockBuilder(AwsStubS3Client::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['listObjectsV2'])
+            ->getMock();
+        $mockClient->expects($this->once())
+            ->method('listObjectsV2')
+            ->with([
+                'Bucket' => 'test-bucket',
+                'MaxKeys' => 1000,
+            ])
+            ->willReturn(new Result(['Contents' => null]));
+
+        $subject = new class ($mockClient) {
+            use S3Trait;
+
+            public function __construct(private readonly S3Client $injectedClient)
+            {
+            }
+
+            protected function makeS3Client(): S3Client
+            {
+                return $this->injectedClient;
+            }
+        };
+
+        $subject->listFilesWithUrls();
+        $this->assertTrue(true);
+    }
+
+    public function testListFilesWithUrlsThrowsOnAwsException(): void
+    {
+        $mockException = $this->getMockBuilder(AwsException::class)
+            ->disableOriginalConstructor()
+            ->getMock();
+
+        $mockClient = $this->getMockBuilder(AwsStubS3Client::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['listObjectsV2'])
+            ->getMock();
+        $mockClient->method('listObjectsV2')->willThrowException($mockException);
+
+        $subject = new class ($mockClient) {
+            use S3Trait;
+
+            public function __construct(private readonly S3Client $injectedClient)
+            {
+            }
+
+            protected function makeS3Client(): S3Client
+            {
+                return $this->injectedClient;
+            }
+        };
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('Error listing files with URLs from S3:');
+        $subject->listFilesWithUrls();
+    }
+
+    // ── listFiles ─────────────────────────────────────────────────────────────
+
+    public function testListFilesReturnsContents(): void
+    {
+        $files = [
+            ['Key' => 'folder/a.jpg', 'Size' => 512],
+            ['Key' => 'folder/b.png', 'Size' => 1024],
+        ];
+
+        $mockClient = $this->getMockBuilder(AwsStubS3Client::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['listObjectsV2'])
+            ->getMock();
+        $mockClient->method('listObjectsV2')->willReturn(new Result(['Contents' => $files]));
+
+        $subject = new class ($mockClient) {
+            use S3Trait;
+
+            public function __construct(private readonly S3Client $injectedClient)
+            {
+            }
+
+            protected function makeS3Client(): S3Client
+            {
+                return $this->injectedClient;
+            }
+        };
+
+        $this->assertSame($files, $subject->listFiles());
+    }
+
+    public function testListFilesReturnsEmptyArrayWhenNoContents(): void
+    {
+        $mockClient = $this->getMockBuilder(AwsStubS3Client::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['listObjectsV2'])
+            ->getMock();
+        $mockClient->method('listObjectsV2')->willReturn(new Result(['Contents' => null]));
+
+        $subject = new class ($mockClient) {
+            use S3Trait;
+
+            public function __construct(private readonly S3Client $injectedClient)
+            {
+            }
+
+            protected function makeS3Client(): S3Client
+            {
+                return $this->injectedClient;
+            }
+        };
+
+        $this->assertSame([], $subject->listFiles());
+    }
+
+    public function testListFilesPassesPrefixAndMaxKeys(): void
+    {
+        $mockClient = $this->getMockBuilder(AwsStubS3Client::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['listObjectsV2'])
+            ->getMock();
+        $mockClient->expects($this->once())
+            ->method('listObjectsV2')
+            ->with([
+                'Bucket' => 'test-bucket',
+                'MaxKeys' => 100,
+                'Prefix' => 'archive/',
+            ])
+            ->willReturn(new Result(['Contents' => null]));
+
+        $subject = new class ($mockClient) {
+            use S3Trait;
+
+            public function __construct(private readonly S3Client $injectedClient)
+            {
+            }
+
+            protected function makeS3Client(): S3Client
+            {
+                return $this->injectedClient;
+            }
+        };
+
+        $subject->listFiles('archive/', 100);
+        $this->assertTrue(true);
+    }
+
+    public function testListFilesOmitsPrefixWhenEmpty(): void
+    {
+        $mockClient = $this->getMockBuilder(AwsStubS3Client::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['listObjectsV2'])
+            ->getMock();
+        $mockClient->expects($this->once())
+            ->method('listObjectsV2')
+            ->with([
+                'Bucket' => 'test-bucket',
+                'MaxKeys' => 1000,
+            ])
+            ->willReturn(new Result(['Contents' => null]));
+
+        $subject = new class ($mockClient) {
+            use S3Trait;
+
+            public function __construct(private readonly S3Client $injectedClient)
+            {
+            }
+
+            protected function makeS3Client(): S3Client
+            {
+                return $this->injectedClient;
+            }
+        };
+
+        $subject->listFiles();
+        $this->assertTrue(true);
+    }
+
+    public function testListFilesThrowsOnAwsException(): void
+    {
+        $mockException = $this->getMockBuilder(AwsException::class)
+            ->disableOriginalConstructor()
+            ->getMock();
+
+        $mockClient = $this->getMockBuilder(AwsStubS3Client::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['listObjectsV2'])
+            ->getMock();
+        $mockClient->method('listObjectsV2')->willThrowException($mockException);
+
+        $subject = new class ($mockClient) {
+            use S3Trait;
+
+            public function __construct(private readonly S3Client $injectedClient)
+            {
+            }
+
+            protected function makeS3Client(): S3Client
+            {
+                return $this->injectedClient;
+            }
+        };
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('Error listing files from S3:');
+        $subject->listFiles();
+    }
+}

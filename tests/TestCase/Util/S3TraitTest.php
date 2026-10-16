@@ -8,6 +8,7 @@ use Aws\Result;
 use Aws\S3\S3Client;
 use Cake\Core\Configure;
 use Cake\TestSuite\TestCase;
+use CakeDC\Uppy\Test\TestSuite\AwsStubS3Client;
 use CakeDC\Uppy\Util\S3Trait;
 use Exception;
 use InvalidArgumentException;
@@ -45,9 +46,9 @@ class S3TraitTest extends TestCase
 
     public function testSetPublicPermissionsCallsPutObjectAclWithCorrectParams(): void
     {
-        $mockClient = $this->getMockBuilder(S3Client::class)
+        $mockClient = $this->getMockBuilder(AwsStubS3Client::class)
             ->disableOriginalConstructor()
-            ->addMethods(['putObjectAcl'])
+            ->onlyMethods(['putObjectAcl'])
             ->getMock();
         $mockClient->expects($this->once())
             ->method('putObjectAcl')
@@ -79,9 +80,9 @@ class S3TraitTest extends TestCase
 
     public function testListFilesWithUrlsReturnsObjectsWithPresignedUrls(): void
     {
-        $mockClient = $this->getMockBuilder(S3Client::class)
+        $mockClient = $this->getMockBuilder(AwsStubS3Client::class)
             ->disableOriginalConstructor()
-            ->addMethods(['listObjectsV2'])
+            ->onlyMethods(['listObjectsV2'])
             ->getMock();
         $mockClient->method('listObjectsV2')->willReturn(new Result([
             'Contents' => [
@@ -114,9 +115,9 @@ class S3TraitTest extends TestCase
 
     public function testListFilesWithUrlsReturnsEmptyArrayWhenNoContents(): void
     {
-        $mockClient = $this->getMockBuilder(S3Client::class)
+        $mockClient = $this->getMockBuilder(AwsStubS3Client::class)
             ->disableOriginalConstructor()
-            ->addMethods(['listObjectsV2'])
+            ->onlyMethods(['listObjectsV2'])
             ->getMock();
         $mockClient->method('listObjectsV2')->willReturn(new Result(['Contents' => null]));
 
@@ -138,9 +139,9 @@ class S3TraitTest extends TestCase
 
     public function testListFilesWithUrlsPassesPrefixAndMaxKeys(): void
     {
-        $mockClient = $this->getMockBuilder(S3Client::class)
+        $mockClient = $this->getMockBuilder(AwsStubS3Client::class)
             ->disableOriginalConstructor()
-            ->addMethods(['listObjectsV2'])
+            ->onlyMethods(['listObjectsV2'])
             ->getMock();
         $mockClient->expects($this->once())
             ->method('listObjectsV2')
@@ -170,9 +171,9 @@ class S3TraitTest extends TestCase
 
     public function testListFilesWithUrlsOmitsPrefixWhenEmpty(): void
     {
-        $mockClient = $this->getMockBuilder(S3Client::class)
+        $mockClient = $this->getMockBuilder(AwsStubS3Client::class)
             ->disableOriginalConstructor()
-            ->addMethods(['listObjectsV2'])
+            ->onlyMethods(['listObjectsV2'])
             ->getMock();
         $mockClient->expects($this->once())
             ->method('listObjectsV2')
@@ -205,9 +206,9 @@ class S3TraitTest extends TestCase
             ->disableOriginalConstructor()
             ->getMock();
 
-        $mockClient = $this->getMockBuilder(S3Client::class)
+        $mockClient = $this->getMockBuilder(AwsStubS3Client::class)
             ->disableOriginalConstructor()
-            ->addMethods(['listObjectsV2'])
+            ->onlyMethods(['listObjectsV2'])
             ->getMock();
         $mockClient->method('listObjectsV2')->willThrowException($mockException);
 
@@ -238,9 +239,9 @@ class S3TraitTest extends TestCase
             ['Key' => 'folder/b.png', 'Size' => 1024],
         ];
 
-        $mockClient = $this->getMockBuilder(S3Client::class)
+        $mockClient = $this->getMockBuilder(AwsStubS3Client::class)
             ->disableOriginalConstructor()
-            ->addMethods(['listObjectsV2'])
+            ->onlyMethods(['listObjectsV2'])
             ->getMock();
         $mockClient->method('listObjectsV2')->willReturn(new Result(['Contents' => $files]));
 
@@ -262,9 +263,9 @@ class S3TraitTest extends TestCase
 
     public function testListFilesReturnsEmptyArrayWhenNoContents(): void
     {
-        $mockClient = $this->getMockBuilder(S3Client::class)
+        $mockClient = $this->getMockBuilder(AwsStubS3Client::class)
             ->disableOriginalConstructor()
-            ->addMethods(['listObjectsV2'])
+            ->onlyMethods(['listObjectsV2'])
             ->getMock();
         $mockClient->method('listObjectsV2')->willReturn(new Result(['Contents' => null]));
 
@@ -286,9 +287,9 @@ class S3TraitTest extends TestCase
 
     public function testListFilesPassesPrefixAndMaxKeys(): void
     {
-        $mockClient = $this->getMockBuilder(S3Client::class)
+        $mockClient = $this->getMockBuilder(AwsStubS3Client::class)
             ->disableOriginalConstructor()
-            ->addMethods(['listObjectsV2'])
+            ->onlyMethods(['listObjectsV2'])
             ->getMock();
         $mockClient->expects($this->once())
             ->method('listObjectsV2')
@@ -318,9 +319,9 @@ class S3TraitTest extends TestCase
 
     public function testListFilesOmitsPrefixWhenEmpty(): void
     {
-        $mockClient = $this->getMockBuilder(S3Client::class)
+        $mockClient = $this->getMockBuilder(AwsStubS3Client::class)
             ->disableOriginalConstructor()
-            ->addMethods(['listObjectsV2'])
+            ->onlyMethods(['listObjectsV2'])
             ->getMock();
         $mockClient->expects($this->once())
             ->method('listObjectsV2')
@@ -353,9 +354,9 @@ class S3TraitTest extends TestCase
             ->disableOriginalConstructor()
             ->getMock();
 
-        $mockClient = $this->getMockBuilder(S3Client::class)
+        $mockClient = $this->getMockBuilder(AwsStubS3Client::class)
             ->disableOriginalConstructor()
-            ->addMethods(['listObjectsV2'])
+            ->onlyMethods(['listObjectsV2'])
             ->getMock();
         $mockClient->method('listObjectsV2')->willThrowException($mockException);
 

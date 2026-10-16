@@ -106,13 +106,11 @@ class R2Adapter implements MultipartUploadAdapterInterface
         }
 
         $client = $this->getClient();
-        if (!$client->doesObjectExist($this->bucket(), $path)) {
-            return true;
+        if ($client->doesObjectExistV2($this->bucket(), $path)) {
+            $client->deleteObject(['Bucket' => $this->bucket(), 'Key' => $path]);
         }
 
-        $client->deleteObject(['Bucket' => $this->bucket(), 'Key' => $path]);
-
-        return !$client->doesObjectExist($this->bucket(), $path);
+        return true;
     }
 
     /**

@@ -55,6 +55,7 @@ require_once $root . '/vendor/autoload.php';
  * and define the data required by your plugin here.
  */
 require_once $root . '/vendor/cakephp/cakephp/tests/bootstrap.php';
+require_once $root . '/vendor/cakephp/cakephp/src/functions.php';
 
 if (file_exists($root . '/config/bootstrap.php')) {
     require $root . '/config/bootstrap.php';
@@ -72,7 +73,8 @@ if (file_exists($root . '/config/bootstrap.php')) {
  * using migrations to provide schema for your plugin,
  * and using \Migrations\TestSuite\Migrator to load schema.
  */
-if (env('FIXTURE_SCHEMA_METADATA')) {
+$fixtureSchemaMetadata = env('FIXTURE_SCHEMA_METADATA');
+if (is_string($fixtureSchemaMetadata) && $fixtureSchemaMetadata !== '') {
     $loader = new SchemaLoader();
-    $loader->loadInternalFile(env('FIXTURE_SCHEMA_METADATA'));
+    $loader->loadInternalFile($fixtureSchemaMetadata);
 }

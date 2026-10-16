@@ -15,13 +15,12 @@ namespace CakeDC\Uppy\Test\TestCase\Controller;
 use Cake\Core\Configure;
 use Cake\Http\Response;
 use Cake\Http\ServerRequest;
+use Cake\Http\Session;
 use Cake\TestSuite\TestCase;
 use CakeDC\Uppy\Controller\FilesController;
 
 /**
  * CakeDC\Uppy\Controller\FilesController Test Case
- *
- * @uses \CakeDC\Uppy\Controller\FilesController
  */
 class FilesControllerTest extends TestCase
 {
@@ -50,12 +49,20 @@ class FilesControllerTest extends TestCase
     /**
      * @param string $action Controller action.
      * @param array<string, mixed> $payload Request body.
+     * @param array<string, mixed> $sessionData Extra session data to seed.
      * @return \Cake\Http\Response
      */
-    protected function invokeAction(string $action, array $payload): Response
+    protected function invokeAction(string $action, array $payload, array $sessionData = []): Response
     {
+        $session = new Session();
+        $session->write('Auth.userId', 1);
+        foreach ($sessionData as $name => $value) {
+            $session->write($name, $value);
+        }
+
         $request = (new ServerRequest([
             'environment' => ['REQUEST_METHOD' => 'POST'],
+            'session' => $session,
         ]))->withParsedBody($payload);
 
         $controller = new FilesController($request);
@@ -202,6 +209,8 @@ class FilesControllerTest extends TestCase
             'uploadId' => 'dummy-upload-id',
             'key' => 'alerrt/ResourceFiles/test.pdf',
             'partNumber' => 1,
+        ], [
+            'Uppy.multipartUploads' => ['dummy-upload-id' => 'alerrt/ResourceFiles/test.pdf'],
         ]);
 
         $this->assertSame(200, $response->getStatusCode());
@@ -239,6 +248,8 @@ class FilesControllerTest extends TestCase
             'parts' => [
                 ['PartNumber' => 1, 'ETag' => '"abc"'],
             ],
+        ], [
+            'Uppy.multipartUploads' => ['dummy-upload-id' => 'alerrt/ResourceFiles/test.pdf'],
         ]);
 
         $this->assertSame(200, $response->getStatusCode());
@@ -256,6 +267,8 @@ class FilesControllerTest extends TestCase
         $response = $this->invokeAction('abortMultipartUpload', [
             'uploadId' => 'dummy-upload-id',
             'key' => 'alerrt/ResourceFiles/test.pdf',
+        ], [
+            'Uppy.multipartUploads' => ['dummy-upload-id' => 'alerrt/ResourceFiles/test.pdf'],
         ]);
 
         $this->assertSame(200, $response->getStatusCode());

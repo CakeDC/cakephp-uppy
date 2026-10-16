@@ -39,12 +39,61 @@ return [
          */
         'MultipartThreshold' => 104857600,
 
+        /*
+         * Register the plugin routes under /uppy (sign, save, multipart, …).
+         * Defaults to true so the API works in production; set to false to
+         * disable the endpoints entirely. Protect them with authentication.
+         */
+        'routes' => true,
+
+        /*
+         * Lifetime (in seconds) of the pending-upload tokens kept in the session.
+         * `sign()` and the multipart endpoints register a one-time token that
+         * `save()` accepts once; tokens older than this are pruned on read.
+         * Set to 0 to disable expiry. Default: 3600 (1 hour).
+         */
+        'pendingUploadsTtl' => 3600,
+
+        /*
+         * Resolves the current user id used by the ownership checks.
+         * When null, the plugin reads the `identity` request attribute set by
+         * cakephp/authentication and falls back to the `Auth.userId` session
+         * key. Set a callable to support non-standard auth without subclassing
+         * FilesController (the plugin routes always target CakeDC/Uppy.Files,
+         * so a subclass is never invoked for them):
+         *
+         *   'currentUserIdResolver' => fn(\Cake\Http\ServerRequest $request) =>
+         *       $request->getSession()->read('MyCustomAuth.userId'),
+         *
+         * The callable must return a string, an integer or null. When set, it
+         * is authoritative: null (or an empty string) means "no user" and the
+         * request is treated as unauthenticated.
+         */
+        'currentUserIdResolver' => null,
+
+        /*
+         * Resolves the owner id of the record a file is associated with, used
+         * by save()'s ownership check. When null, the plugin derives it from
+         * `<Uppy.Props.usersModel>_id` (e.g. `user_id`). Set a callable that
+         * receives the related record and the ServerRequest and returns the
+         * owner id (string/int) or null, to support a different owner column, a
+         * computed owner, or shared/admin rules:
+         *
+         *   'ownerIdResolver' => fn($record, \Cake\Http\ServerRequest $request) =>
+         *       $record->get('owner_uuid'),
+         *
+         * The callable must return a string, an integer or null.
+         */
+        'ownerIdResolver' => null,
+
         'Props' => [
+            'usersAliasModel' => 'Users',
             'usersModel' => 'Users',
             /*
              * When true and a file record is deleted, the object is also
              * removed from storage. Renamed from deleteFileS3 to apply to
-             * all drivers. Falls back to deleteFileS3 for backwards compat.
+             * all drivers; deleteFileS3 is @deprecated but still honored as
+             * a fallback for backwards compatibility.
              */
             'deleteFileStorage' => true,
             'tableFiles' => 'uppy_files',
@@ -82,6 +131,7 @@ return [
             ],
             'config' => [
                 'version' => 'latest',
+                'connection' => env('S3_CONNECTION', 'real'),
                 'region' => env('S3_REGION', null),
                 'use_path_style_endpoint' => (bool)env('S3_USE_PATH_STYLE_ENDPOINT', false),
                 'credentials' => [
